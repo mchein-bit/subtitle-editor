@@ -50,12 +50,15 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
 .project-bin-list{flex:1;overflow-y:auto;padding:4px}
 .project-bin-list::-webkit-scrollbar{width:3px}
 .project-bin-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
-.bin-item{padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;color:var(--text2);transition:background .1s;display:flex;flex-direction:column;gap:2px;border:1px solid transparent;margin-bottom:2px}
+.bin-item{padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;color:var(--text2);transition:background .1s;display:flex;flex-direction:column;gap:2px;border:1px solid transparent;margin-bottom:2px;position:relative}
 .bin-item:hover{background:var(--panel2);border-color:var(--border)}
 .bin-item.active{background:rgba(77,159,255,.1);border-color:var(--accent);color:var(--text)}
 .bin-item-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .bin-item-count{font-family:var(--mono);font-size:9px;color:var(--text3)}
 .bin-empty{padding:16px 8px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6}
+.bin-delete-btn{position:absolute;top:4px;right:4px;background:none;border:none;color:var(--text3);font-size:12px;line-height:1;width:16px;height:16px;display:none;align-items:center;justify-content:center;border-radius:3px;cursor:pointer;padding:0;transition:background .1s,color .1s}
+.bin-item:hover .bin-delete-btn{display:flex}
+.bin-delete-btn:hover{background:rgba(224,82,82,.2);color:var(--red)}
 
 .monitor-video-area{flex:1;background:#000;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
 #videoEl{max-width:100%;max-height:100%;display:block;cursor:pointer}
@@ -1617,9 +1620,31 @@ function renderBin() {
     const el = document.createElement('div');
     el.className = 'bin-item' + (p.id === activeProjectId ? ' active' : '');
     el.dataset.id = p.id;
-    el.innerHTML = `<div class="bin-item-name">${p.name}</div><div class="bin-item-count">${p.videoBlobUrl ? '🎬 ' + (p.videoName || 'video') : '📂 no video'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div>`;
+    el.innerHTML = `<div class="bin-item-name">${p.name}</div><div class="bin-item-count">${p.videoBlobUrl ? '🎬 ' + (p.videoName || 'video') : '📂 no video'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div><button class="bin-delete-btn" title="Delete project">×</button>`;
     el.addEventListener('click', () => switchProject(p.id));
     el.addEventListener('dblclick', e => { e.stopPropagation(); const name = prompt('Rename project:', p.name); if (name && name.trim()) { p.name = name.trim(); renderBin(); } });
+    el.querySelector('.bin-delete-btn').addEventListener('click', e => {
+      e.stopPropagation();
+      if (!confirm(`Delete project "${p.name}"?\nThis cannot be undone.`)) return;
+      const idx = projects.findIndex(pr => pr.id === p.id);
+      if (idx > -1) projects.splice(idx, 1);
+      if (activeProjectId === p.id) {
+        if (projects.length) {
+          activeProjectId = projects[0].id;
+          const next = projects[0];
+          subtitles = JSON.parse(JSON.stringify(next.subtitles)); nextId = next.nextId;
+          selectedId = null; selectedIds = new Set();
+          if (next.videoBlobUrl) { video.src = next.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
+          else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
+        } else {
+          activeProjectId = null;
+          subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
+          video.src = ''; video.style.display = 'none';
+          document.getElementById('videoPlaceholder').style.display = '';
+        }
+      }
+      renderBin(); refreshAll(); showToast(`"${p.name}" deleted`);
+    });
     binList.appendChild(el);
   });
 }
