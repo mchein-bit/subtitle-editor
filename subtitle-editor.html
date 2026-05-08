@@ -1,0 +1,1711 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SubEdit</title>
+<style>
+@import url('https://fonts.googleapis.com/css2?family=JetBrains+Mono:wght@400;500;600&family=Inter:wght@400;500;600&display=swap');
+*,*::before,*::after{box-sizing:border-box;margin:0;padding:0}
+:root{
+  --bg:#1a1a1e;--panel:#222226;--panel2:#2a2a2f;--panel3:#323238;
+  --border:#3a3a42;--border2:#545462;
+  --accent:#4d9fff;--accent-g:#3d8fee;
+  --yellow:#f5c542;--red:#e05252;--green:#4caf7d;
+  --text:#ffffff;--text2:#c8cad8;--text3:#8888a0;
+  --mono:'JetBrains Mono',monospace;--ui:'Inter',sans-serif;--r:4px;
+}
+html,body{height:100%;background:var(--bg);color:var(--text);font-family:var(--ui);font-size:13px;overflow:hidden}
+
+/* ── MENUBAR ── */
+.menubar{height:36px;background:#111115;border-bottom:1px solid #0d0d10;display:flex;align-items:center;padding:0 12px;gap:0;flex-shrink:0;z-index:100}
+.menubar-logo{font-family:var(--mono);font-size:13px;font-weight:600;color:var(--accent);letter-spacing:.5px;margin-right:16px}
+.menu-btn{font-family:var(--ui);font-size:12px;color:var(--text2);background:none;border:none;padding:4px 10px;border-radius:var(--r);cursor:pointer;transition:color .1s,background .1s;white-space:nowrap}
+.menu-btn:hover{color:var(--text);background:var(--panel3)}
+.menu-btn.primary{background:var(--accent);color:#fff;font-weight:600}
+.menu-btn.primary:hover{background:var(--accent-g)}
+.menu-btn.ghost{border:1px solid var(--border)}
+.menu-btn.ghost:hover{border-color:var(--border2);color:var(--text)}
+.menu-sep{width:1px;height:18px;background:var(--border);margin:0 8px}
+.menubar-right{margin-left:auto;display:flex;align-items:center;gap:6px}
+.time-readout{font-family:var(--mono);font-size:12px;color:var(--text3);background:#0d0d10;border:1px solid var(--border);border-radius:var(--r);padding:3px 10px;letter-spacing:.5px}
+.time-readout span{color:var(--text)}
+#filenameInput{font-family:var(--mono);font-size:12px;color:var(--text);background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);padding:3px 10px;outline:none;width:180px;transition:border-color .15s}
+#filenameInput:focus{border-color:var(--accent)}
+#filenameInput::placeholder{color:var(--text3)}
+kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--panel3);border:1px solid var(--border2);border-radius:3px;color:var(--text2)}
+
+/* ── WORKSPACE ── */
+.workspace{display:flex;flex-direction:column;height:calc(100vh - 36px);overflow:hidden}
+
+/* ── MONITOR ── */
+.monitor{flex:0 0 38%;background:#000;display:flex;align-items:stretch;border-bottom:2px solid #0d0d10;overflow:hidden;min-height:0}
+
+/* Project bin sidebar */
+.project-bin{width:160px;flex-shrink:0;background:var(--panel);border-right:1px solid var(--border);display:flex;flex-direction:column;overflow:hidden}
+.project-bin-header{padding:7px 10px 6px;border-bottom:1px solid var(--border);font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);display:flex;align-items:center;gap:6px;flex-shrink:0}
+.project-bin-header span{flex:1}
+.bin-add-btn{background:none;border:1px solid var(--border);border-radius:3px;color:var(--text3);cursor:pointer;font-size:13px;width:20px;height:20px;display:flex;align-items:center;justify-content:center;transition:all .1s;flex-shrink:0}
+.bin-add-btn:hover{border-color:var(--accent);color:var(--accent)}
+.project-bin-list{flex:1;overflow-y:auto;padding:4px}
+.project-bin-list::-webkit-scrollbar{width:3px}
+.project-bin-list::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.bin-item{padding:6px 8px;border-radius:4px;cursor:pointer;font-size:11px;color:var(--text2);transition:background .1s;display:flex;flex-direction:column;gap:2px;border:1px solid transparent;margin-bottom:2px}
+.bin-item:hover{background:var(--panel2);border-color:var(--border)}
+.bin-item.active{background:rgba(77,159,255,.1);border-color:var(--accent);color:var(--text)}
+.bin-item-name{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.bin-item-count{font-family:var(--mono);font-size:9px;color:var(--text3)}
+.bin-empty{padding:16px 8px;font-size:11px;color:var(--text3);text-align:center;line-height:1.6}
+
+.monitor-video-area{flex:1;background:#000;position:relative;display:flex;align-items:center;justify-content:center;overflow:hidden;cursor:pointer}
+#videoEl{max-width:100%;max-height:100%;display:block;cursor:pointer}
+.video-placeholder{display:flex;flex-direction:column;align-items:center;gap:14px;color:var(--text3);cursor:pointer;user-select:none}
+.drop-icon{width:64px;height:64px;border:2px dashed var(--border2);border-radius:12px;display:flex;align-items:center;justify-content:center;color:var(--text3);transition:border-color .2s,color .2s}
+.video-placeholder:hover .drop-icon{border-color:var(--accent);color:var(--accent)}
+.video-placeholder strong{font-size:14px;color:var(--text2);font-weight:500}
+.video-placeholder small{font-size:11px;color:var(--text3)}
+#videoInput{display:none}
+.sub-overlay{position:absolute;bottom:8%;left:50%;transform:translateX(-50%);text-align:center;pointer-events:none;z-index:5;width:88%}
+.sub-overlay-line{display:block;font-family:var(--ui);font-weight:400;font-size:clamp(13px,2.2vw,20px);color:#fff;background:rgba(0,0,0,.65);padding:3px 14px;border-radius:2px;line-height:1.5;margin:1px 0;text-shadow:0 1px 4px rgba(0,0,0,1)}
+.sub-overlay-line b,.sub-overlay-line strong{font-weight:900}
+.sub-overlay-line i,.sub-overlay-line em{font-style:italic}
+.cue-banner{position:absolute;top:0;left:0;right:0;z-index:30;background:rgba(245,197,66,.93);color:#111;font-family:var(--mono);font-size:12px;font-weight:600;padding:7px 14px;display:none;align-items:center;gap:10px}
+.cue-banner.active{display:flex}
+.cue-banner-text{flex:1;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;font-size:13px}
+.cue-banner-idx{background:rgba(0,0,0,.18);border-radius:3px;padding:1px 8px;font-size:11px;white-space:nowrap;flex-shrink:0}
+.cue-banner-exit{background:none;border:1px solid rgba(0,0,0,.3);border-radius:3px;font-family:var(--mono);font-size:11px;color:#111;padding:3px 10px;cursor:pointer;flex-shrink:0}
+
+/* ── BOTTOM ── */
+.bottom{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+
+/* ── TRANSPORT ── */
+.transport{height:40px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:6px;flex-shrink:0}
+.tc-btn{background:none;border:none;color:var(--text2);cursor:pointer;padding:5px;border-radius:var(--r);display:flex;align-items:center;justify-content:center;transition:color .1s,background .1s}
+.tc-btn:hover{color:var(--text);background:var(--panel3)}
+.tc-btn.play{color:#fff;background:var(--accent);width:28px;height:28px;border-radius:50%}
+.tc-btn.play:hover{background:var(--accent-g)}
+.mark-btn{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--yellow);background:rgba(245,197,66,.08);color:var(--yellow);cursor:pointer;transition:all .15s;white-space:nowrap}
+.mark-btn:hover{background:rgba(245,197,66,.2)}
+.mark-flash{animation:mflash .35s ease-out}
+@keyframes mflash{0%{background:rgba(245,197,66,.5)}100%{background:rgba(245,197,66,.08)}}
+.cue-btn{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--yellow);background:rgba(245,197,66,.08);color:var(--yellow);cursor:pointer;transition:all .15s;white-space:nowrap}
+.cue-btn:hover{background:rgba(245,197,66,.2)}
+.cue-btn.cue-active{background:var(--yellow);color:#111;font-weight:700}
+.speed-sel{font-family:var(--mono);font-size:11px;background:var(--panel3);border:1px solid var(--border);color:var(--text2);padding:3px 5px;border-radius:var(--r);cursor:pointer}
+.mode-btn{font-family:var(--mono);font-size:10px;padding:3px 7px;border-radius:var(--r);border:1px solid var(--border);background:var(--panel3);color:var(--text3);cursor:pointer;transition:all .15s;white-space:nowrap}
+.mode-btn:hover{color:var(--text);border-color:var(--border2)}
+.mode-btn.push-mode{border-color:var(--green);color:var(--green);background:rgba(76,175,125,.1)}
+/* IN/OUT badges in transport */
+.io-badge{font-family:var(--mono);font-size:10px;padding:2px 7px;border-radius:var(--r);border:1px solid;white-space:nowrap;cursor:pointer;transition:all .12s}
+.io-badge.in-badge{border-color:var(--green);color:var(--green);background:rgba(76,175,125,.08)}
+.io-badge.in-badge.set{background:rgba(76,175,125,.18)}
+.io-badge.out-badge{border-color:var(--yellow);color:var(--yellow);background:rgba(245,197,66,.08)}
+.io-badge.out-badge.set{background:rgba(245,197,66,.18)}
+#zoomRange{width:70px;cursor:pointer;accent-color:var(--accent)}
+
+/* ── TIMELINE STRIP ── */
+.sub-timeline{height:68px;background:#111115;border-bottom:1px solid var(--border);overflow-x:auto;overflow-y:hidden;position:relative;flex-shrink:0;user-select:none;cursor:pointer}
+.sub-timeline::-webkit-scrollbar{height:4px}
+.sub-timeline::-webkit-scrollbar-thumb{background:var(--border);border-radius:2px}
+.tl-inner{position:relative;height:100%}
+.tl-lane{position:absolute;top:16px;left:0;right:0;height:36px}
+.tl-block{position:absolute;top:0;height:100%;background:rgba(77,159,255,.15);border:1px solid rgba(77,159,255,.35);border-radius:3px;cursor:grab;overflow:hidden;display:flex;align-items:center;padding:0 6px;min-width:2px}
+.tl-block:hover{background:rgba(77,159,255,.28)}
+.tl-block.active{background:rgba(77,159,255,.4);border-color:var(--accent)}
+.tl-block.selected{border-color:var(--yellow);background:rgba(245,197,66,.2)}
+.tl-select-box{position:absolute;top:0;height:100%;background:rgba(77,159,255,.15);border:1px solid var(--accent);border-radius:2px;pointer-events:none;z-index:20}
+.tl-block span{font-size:9px;font-family:var(--mono);color:var(--text2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;pointer-events:none}
+/* Fixed centre playhead */
+.tl-playhead{position:absolute;top:0;bottom:0;left:0;width:12px;margin-left:-6px;background:transparent;z-index:30;cursor:ew-resize}
+.tl-playhead::after{content:'';position:absolute;top:0;bottom:0;left:5px;width:2px;background:var(--red)}
+.tl-playhead::before{content:'';position:absolute;top:0;left:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:10px solid var(--red)}
+.tl-resize{position:absolute;top:0;bottom:0;width:7px;z-index:5}
+.tl-resize-l{left:0;cursor:w-resize}
+.tl-resize-r{right:0;cursor:e-resize}
+/* IN/OUT markers on timeline */
+.tl-in-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--green);z-index:18;pointer-events:none}
+.tl-in-marker::before{content:'IN';position:absolute;top:1px;left:3px;font-family:var(--mono);font-size:8px;color:var(--green);font-weight:700;white-space:nowrap}
+.tl-out-marker{position:absolute;top:0;bottom:0;width:2px;background:var(--yellow);z-index:18;pointer-events:none}
+.tl-out-marker::before{content:'OUT';position:absolute;top:1px;left:3px;font-family:var(--mono);font-size:8px;color:var(--yellow);font-weight:700;white-space:nowrap}
+.tl-io-band{position:absolute;top:0;bottom:0;background:rgba(76,175,125,.07);border-left:1px solid rgba(76,175,125,.3);border-right:1px solid rgba(245,197,66,.3);pointer-events:none;z-index:17}
+
+/* snap / ghost */
+@keyframes snapPulse{0%,100%{opacity:.5}50%{opacity:1}}
+.tl-snap-indicator{position:absolute;top:-2px;bottom:-2px;width:3px;background:var(--accent);border-radius:2px;pointer-events:none;z-index:25;animation:snapPulse .5s ease-in-out infinite;box-shadow:0 0 6px var(--accent)}
+.tl-ghost{position:absolute;top:0;height:100%;border-radius:3px;pointer-events:none;z-index:15;opacity:.55;border:1px dashed}
+.tl-ghost.ghost-cut{background:rgba(224,82,82,.15);border-color:var(--red)}
+.tl-ghost.ghost-push{background:rgba(76,175,125,.12);border-color:var(--green)}
+
+/* ── SUBTITLE WORKSPACE ── */
+.sub-workspace{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden}
+.sub-toolbar{height:34px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 10px;gap:6px;flex-shrink:0}
+.sub-toolbar-label{font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3)}
+.sub-count-badge{font-family:var(--mono);font-size:10px;background:var(--panel3);border:1px solid var(--border);border-radius:3px;color:var(--text3);padding:1px 6px}
+.tb-btn{font-size:11px;font-weight:500;padding:4px 10px;border-radius:var(--r);border:1px solid transparent;background:none;color:var(--text3);cursor:pointer;transition:all .12s;white-space:nowrap}
+.tb-btn:hover{background:var(--panel3);color:var(--text)}
+.tb-btn.active-tab{background:var(--panel3);color:var(--text);border-color:var(--border)}
+.tb-spacer{flex:1}
+
+/* ── SUBTITLE LIST ── */
+.sub-list-wrap{flex:1;min-height:0;overflow:hidden;display:none;grid-template-columns:1fr 1fr}
+.sub-list-wrap.visible{display:grid}
+.sub-list-left{overflow-y:auto;border-right:1px solid var(--border);min-width:0}
+.sub-list-left::-webkit-scrollbar{width:5px}
+.sub-list-left::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.sub-list-right{overflow-y:auto;background:var(--panel);min-width:0}
+.sub-list-right::-webkit-scrollbar{width:4px}
+.sub-list-right::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.sub-row{display:flex;align-items:flex-start;border-bottom:1px solid rgba(58,58,66,.5);background:var(--bg);transition:background .08s;position:relative}
+.sub-row:hover{background:var(--panel2)}
+.sub-row.selected{background:rgba(245,197,66,.05);border-bottom-color:rgba(245,197,66,.15)}
+.sub-row.playing{background:rgba(77,159,255,.06)}
+.sr-num{flex-shrink:0;width:32px;font-family:var(--mono);font-size:10px;color:var(--text3);padding:10px 4px 10px 8px;text-align:right;cursor:pointer;user-select:none}
+.sub-row.selected .sr-num{color:var(--yellow)}
+.sr-timing{flex-shrink:0;width:210px;padding:7px 8px 7px 6px;display:flex;flex-direction:column;gap:3px;border-right:1px solid var(--border)}
+.sr-time-row{display:flex;align-items:center;gap:3px}
+.sr-label{font-size:9px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;width:20px;flex-shrink:0}
+.t-input{font-family:var(--mono);font-size:11px;color:var(--text);background:transparent;border:1px solid transparent;border-radius:3px;padding:2px 4px;outline:none;width:74px;flex-shrink:0;transition:border-color .12s,background .12s}
+.t-input:hover{border-color:var(--border);background:var(--panel3)}
+.t-input:focus{border-color:var(--accent);background:var(--panel3)}
+.nudge-pair{display:flex;gap:2px}
+.nudge-btn{font-family:var(--mono);font-size:9px;background:var(--panel3);border:1px solid var(--border);border-radius:2px;color:var(--text3);padding:1px 4px;cursor:pointer;line-height:1.4;transition:all .1s;white-space:nowrap}
+.nudge-btn:hover{border-color:var(--accent);color:var(--accent)}
+.set-btn{font-family:var(--mono);font-size:9px;background:var(--panel3);border:1px solid var(--border);border-radius:2px;color:var(--text3);padding:1px 5px;cursor:pointer;line-height:1.4;transition:all .1s;white-space:nowrap}
+.set-btn:hover{border-color:var(--yellow);color:var(--yellow)}
+.dur-badge{font-family:var(--mono);font-size:10px;color:var(--text3);padding:1px 0;margin-top:1px}
+.sr-text-col{flex:1;min-width:0;padding:6px 8px 6px 10px;display:flex;flex-direction:column;gap:4px}
+.sr-editor{width:100%;background:transparent;border:1px solid transparent;border-radius:var(--r);color:var(--text);font-family:var(--ui);font-size:13px;line-height:1.55;padding:3px 6px;outline:none;min-height:26px;cursor:pointer;white-space:pre-wrap;word-break:break-word;transition:border-color .12s,background .12s}
+.sr-editor:hover{border-color:var(--border);background:var(--panel2);cursor:text}
+.sub-row.selected .sr-editor,.sr-editor:focus{background:var(--panel3);border-color:var(--border);cursor:text}
+.sr-editor:focus{border-color:var(--accent)!important}
+.sr-editor b,.sr-editor strong{font-weight:800;color:#fff}
+.sr-editor i,.sr-editor em{font-style:italic;color:#e8e0ff}
+.sr-editor:empty::before{content:attr(data-placeholder);color:var(--text3);font-style:italic;font-size:12px;pointer-events:none}
+.sr-actions{display:flex;gap:4px;align-items:center;opacity:0;transition:opacity .1s;flex-wrap:wrap}
+.sub-row.selected .sr-actions,.sub-row:hover .sr-actions{opacity:1}
+.sr-btn{font-family:var(--mono);font-size:10px;background:none;border:1px solid var(--border);border-radius:3px;color:var(--text3);padding:2px 7px;cursor:pointer;transition:all .1s;white-space:nowrap}
+.sr-btn:hover{background:var(--panel3);color:var(--text)}
+.sr-btn.danger:hover{border-color:var(--red);color:var(--red)}
+.sr-hint{font-size:10px;color:var(--text3);font-family:var(--mono);line-height:1.6}
+.sub-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);font-size:12px;padding:36px 20px;text-align:center}
+
+/* ── IMPORT ── */
+.import-panel{flex:1;overflow:hidden;display:none;flex-direction:row}
+.import-panel.visible{display:flex}
+.field-label{font-size:11px;font-weight:600;color:var(--text);margin-bottom:3px}
+.field-desc{font-size:11px;color:var(--text3);line-height:1.6}
+.import-ta{width:100%;min-height:120px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--mono);font-size:12px;padding:10px;line-height:1.6;resize:vertical;outline:none;transition:border-color .15s}
+.import-ta:focus{border-color:var(--accent)}
+.import-file-zone{border:1px dashed var(--border2);border-radius:var(--r);padding:10px;text-align:center;cursor:pointer;color:var(--text3);font-size:12px;transition:border-color .15s}
+.import-file-zone:hover{border-color:var(--accent);color:var(--accent)}
+.import-steps{display:flex;flex-direction:column;gap:4px}
+.import-step{display:flex;align-items:flex-start;gap:8px;font-size:12px;color:var(--text2);line-height:1.5}
+.step-num{flex-shrink:0;width:18px;height:18px;border-radius:50%;background:var(--panel3);border:1px solid var(--border);font-family:var(--mono);font-size:10px;display:flex;align-items:center;justify-content:center;color:var(--yellow);margin-top:1px}
+/* IN/OUT display in import panel */
+.io-range-display{font-family:var(--mono);font-size:11px;padding:6px 10px;border-radius:var(--r);background:var(--panel3);border:1px solid var(--border);display:flex;gap:10px;align-items:center}
+.io-range-in{color:var(--green)}
+.io-range-out{color:var(--yellow)}
+.io-range-none{color:var(--text3);font-style:italic}
+
+/* ── SHORTCUTS ── */
+.shortcuts-panel{flex:1;overflow:hidden;display:none}
+.shortcuts-panel.visible{display:flex;flex-direction:column}
+.sc-row{display:flex;align-items:center;gap:8px;padding:5px 6px;border-bottom:1px solid rgba(58,58,66,.35);border-radius:3px}
+.sc-row:hover{background:var(--panel2)}
+.sc-desc{flex:1;font-size:12px;color:var(--text2)}
+.sc-keys{display:flex;gap:3px;flex-wrap:wrap;justify-content:flex-end}
+
+/* ── TOAST ── */
+.toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 16px;border-radius:20px;opacity:0;pointer-events:none;z-index:999;transition:all .2s;white-space:nowrap}
+.toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
+.toast.yellow{border-color:var(--yellow);color:var(--yellow)}
+</style>
+</head>
+<body>
+
+<div class="menubar">
+  <div class="menubar-logo">SubEdit</div>
+  <button class="menu-btn" id="loadVideoBtn">📂 Open Video</button>
+  <input type="file" id="videoInput" accept="video/*">
+  <div class="menu-sep"></div>
+  <button class="menu-btn ghost" id="undoBtn" title="Undo (Ctrl+Z)" style="opacity:.4" disabled>↩ Undo</button>
+  <div class="menu-sep"></div>
+  <input id="filenameInput" type="text" placeholder="untitled" title="Export filename">
+  <div class="menu-sep"></div>
+  <button class="menu-btn ghost" id="exportSrtBtn">↓ SRT</button>
+  <button class="menu-btn ghost" id="exportVttBtn">↓ VTT</button>
+  <div class="menubar-right"></div>
+</div>
+
+<div class="workspace">
+  <div class="monitor">
+    <div class="project-bin">
+      <div class="project-bin-header">
+        <span>Projects</span>
+        <button class="bin-add-btn" id="binAddBtn" title="New project">+</button>
+      </div>
+      <div class="project-bin-list" id="binList">
+        <div class="bin-empty" id="binEmpty">No projects yet.<br>Click + to create one.</div>
+      </div>
+    </div>
+
+    <div class="monitor-video-area" id="videoArea">
+      <div class="video-placeholder" id="videoPlaceholder">
+        <div class="drop-icon">
+          <svg width="26" height="26" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24">
+            <path d="M15 10l4.55-2.6A1 1 0 0121 8.26v7.48a1 1 0 01-1.45.86L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
+          </svg>
+        </div>
+        <strong>Open a video to begin</strong>
+        <small>MP4 · MOV · WebM — or drag &amp; drop</small>
+      </div>
+      <video id="videoEl" style="display:none" playsinline></video>
+      <div class="sub-overlay" id="subOverlay"></div>
+      <div class="cue-banner" id="cueBanner">
+        <span class="cue-banner-idx" id="cueBannerIdx">1/1</span>
+        <span class="cue-banner-text" id="cueBannerText"></span>
+        <span style="font-family:var(--mono);font-size:11px;opacity:.7">Press <strong>M</strong> to mark</span>
+        <button class="cue-banner-exit" id="cueBannerExit">✕ Exit</button>
+      </div>
+    </div>
+  </div>
+
+  <div class="bottom">
+    <!-- TRANSPORT -->
+    <div class="transport">
+      <button class="tc-btn" id="skipBackBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M6 6h2v12H6zm3.5 6 8.5 6V6z"/></svg></button>
+      <button class="tc-btn play" id="playBtn"><svg id="playIcon" width="12" height="12" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21"/></svg></button>
+      <button class="tc-btn" id="skipFwdBtn"><svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M18 6h-2v12h2zm-3.5 6L6 18V6z"/></svg></button>
+      <select class="speed-sel" id="speedSel">
+        <option value="0.5">0.5×</option><option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option><option value="1.25">1.25×</option>
+        <option value="1.5">1.5×</option><option value="2">2×</option>
+      </select>
+      <div class="menu-sep"></div>
+      <button class="cue-btn" id="cueBtn">⏱ Cue</button>
+      <div class="menu-sep"></div>
+      <button class="mode-btn" id="modeBtn">✂ Cut</button>
+      <div class="menu-sep"></div>
+      <!-- IN/OUT badges -->
+      <button class="io-badge in-badge" id="inBadge" title="Set IN (I key) / click to clear">IN —:—</button>
+      <button class="io-badge out-badge" id="outBadge" title="Set OUT (O key) / click to clear">OUT —:—</button>
+      <div class="menu-sep"></div>
+      <div class="time-readout" id="timeReadout"><span>0:00:00.00</span> / 0:00:00</div>
+    </div>
+
+    <!-- TIMELINE -->
+    <div class="sub-timeline" id="subTimeline">
+      <div class="tl-inner" id="tlInner">
+        <div class="tl-lane" id="tlLane"></div>
+        <div class="tl-playhead" id="tlPlayhead" style="left:0"></div>
+      </div>
+    </div>
+
+    <!-- MINI-SCROLL BAR -->
+    <div id="tlScrollBar" style="height:14px;background:var(--panel3);border-bottom:1px solid var(--border);position:relative;cursor:pointer;flex-shrink:0;padding:3px 4px">
+      <div id="tlScrollTrack" style="height:8px;background:var(--panel2);border-radius:4px;position:relative;overflow:hidden;border:1px solid var(--border)">
+        <div id="tlScrollThumb" style="position:absolute;top:0;height:100%;background:var(--border2);border-radius:4px;cursor:grab;min-width:24px"></div>
+      </div>
+    </div>
+
+    <!-- ZOOM BAR -->
+    <div style="height:32px;background:var(--panel2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0">
+      <span style="font-family:var(--mono);font-size:10px;color:var(--text3);white-space:nowrap;flex-shrink:0">ZOOM</span>
+      <button id="zoomOut" style="font-family:var(--mono);font-size:13px;width:22px;height:22px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
+      <input type="range" id="zoomRange" min="1" max="10" step="0.25" value="1" style="width:120px;flex-shrink:0;accent-color:var(--accent);cursor:pointer">
+      <button id="zoomIn" style="font-family:var(--mono);font-size:13px;width:22px;height:22px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
+      <span style="font-family:var(--mono);font-size:10px;color:var(--accent);min-width:28px;flex-shrink:0" id="zoomLabel">1×</span>
+    </div>
+
+    <!-- WORKSPACE -->
+    <div class="sub-workspace">
+      <div class="sub-toolbar">
+        <span class="sub-toolbar-label">Subtitles</span>
+        <span class="sub-count-badge" id="subCountBadge">0</span>
+        <span id="groupBadge" style="display:none;font-family:var(--mono);font-size:10px;background:rgba(245,197,66,.15);border:1px solid var(--yellow);border-radius:3px;color:var(--yellow);padding:1px 7px;"></span>
+        <div class="menu-sep" style="margin:0 6px"></div>
+        <button class="tb-btn" data-tab="list">List</button>
+        <button class="tb-btn active-tab" data-tab="import">Import / Cue</button>
+        <div class="tb-spacer"></div>
+        <button class="tb-btn" id="addSubBtn" style="border:1px solid var(--border)">+ Add</button>
+      </div>
+
+      <!-- LIST TAB -->
+      <div class="sub-list-wrap" id="listWrap">
+        <div class="sub-list-left">
+          <div id="subList"></div>
+          <div class="sub-empty" id="subEmpty">
+            <svg width="28" height="28" fill="none" stroke="currentColor" stroke-width="1.5" viewBox="0 0 24 24"><rect x="3" y="5" width="18" height="14" rx="2"/><line x1="7" y1="9" x2="17" y2="9"/><line x1="7" y1="13" x2="13" y2="13"/></svg>
+            <span>No subtitles yet — add one or use Import / Cue</span>
+          </div>
+        </div>
+        <div class="sub-list-right">
+          <div style="padding:6px 12px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:1">Shortcuts</div>
+          <div class="sc-row"><span class="sc-desc">Play / Pause</span><span class="sc-keys"><kbd>Space</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Click video</span><span class="sc-keys"><kbd>Click</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Mark subtitle</span><span class="sc-keys"><kbd>M</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Seek ±1s</span><span class="sc-keys"><kbd>←</kbd><kbd>→</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Seek ±0.1s</span><span class="sc-keys"><kbd>⇧←→</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Seek ±5s</span><span class="sc-keys"><kbd>^←→</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Set IN / OUT</span><span class="sc-keys"><kbd>I</kbd><kbd>O</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Clear IN / OUT</span><span class="sc-keys"><kbd>⌘A</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Enter while playing</span><span class="sc-keys">pause + edit</span></div>
+          <div class="sc-row"><span class="sc-desc">Jump to sub</span><span class="sc-keys"><kbd>↵</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Split at cursor</span><span class="sc-keys"><kbd>^↵</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Line break</span><span class="sc-keys"><kbd>⇧↵</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Delete</span><span class="sc-keys"><kbd>Del</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Bold / Italic</span><span class="sc-keys"><kbd>^B</kbd><kbd>^I</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Undo</span><span class="sc-keys"><kbd>^Z</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Prev / Next</span><span class="sc-keys"><kbd>↑</kbd><kbd>↓</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Box-select</span><span class="sc-keys">Drag empty lane</span></div>
+          <div class="sc-row"><span class="sc-desc">Add to group</span><span class="sc-keys"><kbd>⇧</kbd>+click</span></div>
+          <div class="sc-row"><span class="sc-desc">Push resize</span><span class="sc-keys"><kbd>⇧</kbd>+drag edge</span></div>
+          <div class="sc-row"><span class="sc-desc">Zoom timeline</span><span class="sc-keys">Bar below TL</span></div>
+        </div>
+      </div>
+
+      <button id="markBtn" style="display:none"></button>
+
+      <!-- IMPORT / CUE TAB -->
+      <div class="import-panel visible" id="importPanel">
+        <div style="flex:1;min-width:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:10px;border-right:1px solid var(--border)">
+          <div>
+            <div class="field-label">Import SRT / VTT file</div>
+            <div class="import-file-zone" id="importFileZone">Drop .srt or .vtt here, or click to browse<input type="file" id="importFileInput" accept=".srt,.vtt" style="display:none"></div>
+          </div>
+          <div style="display:flex;align-items:center;gap:8px"><div style="flex:1;height:1px;background:var(--border)"></div><span style="font-size:11px;color:var(--text3)">or paste plain text</span><div style="flex:1;height:1px;background:var(--border)"></div></div>
+          <div>
+            <div class="field-label">Paste your script</div>
+            <div class="field-desc">Blank line = new subtitle · Line break = new line within subtitle</div>
+            <textarea class="import-ta" id="importTa" style="margin-top:6px" placeholder="First subtitle&#10;Second line of first&#10;&#10;Second subtitle&#10;&#10;Third subtitle…"></textarea>
+          </div>
+        </div>
+        <div style="flex:1;min-width:0;overflow-y:auto;padding:12px;display:flex;flex-direction:column;gap:12px;background:var(--panel)">
+          <div>
+            <div class="field-label" style="margin-bottom:8px">Import options</div>
+            <div style="display:flex;flex-direction:column;gap:6px">
+              <button class="menu-btn primary" id="importReplaceBtn" style="width:100%;justify-content:center">Import subtitles</button>
+              <button class="menu-btn ghost" id="importAppendBtn" style="width:100%;justify-content:center">Append subtitles</button>
+            </div>
+            <div style="font-size:10px;color:var(--text3);margin-top:8px;line-height:1.6">Set <kbd>I</kbd> / <kbd>O</kbd> to place across a range.<br>Otherwise defaults to 10s each from start.</div>
+          </div>
+          <div style="height:1px;background:var(--border)"></div>
+          <div>
+            <div class="field-label" style="margin-bottom:8px">⏱ Live Cue Mode</div>
+            <div class="import-steps">
+              <div class="import-step"><span class="step-num">1</span><span>Paste text on the left &amp; click <strong>Import</strong></span></div>
+              <div class="import-step"><span class="step-num">2</span><span>Rewind to start, click <strong>⏱ Cue</strong> in the toolbar</span></div>
+              <div class="import-step"><span class="step-num">3</span><span>Press Play, then hit <kbd>M</kbd> when each subtitle starts</span></div>
+              <div class="import-step"><span class="step-num">4</span><span>Each <kbd>M</kbd> closes the previous &amp; opens the next</span></div>
+            </div>
+            <button class="cue-btn" id="cueBtnImport" style="width:100%;margin-top:12px;justify-content:center;display:flex;align-items:center;gap:6px">⏱ Start Cue Mode</button>
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+<div class="toast" id="toast"></div>
+
+<script>
+const DEFAULT_DUR = 10;
+let subtitles = [], selectedId = null, nextId = 1;
+let selectedIds = new Set();
+let zoomLevel = 1;
+// IN/OUT points (null = not set)
+let inPoint  = null;
+let outPoint = null;
+
+// ── UNDO ──────────────────────────────────────────
+const undoStack = [];
+const undoBtn = document.getElementById('undoBtn');
+function saveUndo() {
+  undoStack.push(JSON.stringify(subtitles));
+  if (undoStack.length > 50) undoStack.shift();
+  undoBtn.disabled = false; undoBtn.style.opacity = '1';
+  undoBtn.style.borderColor = 'var(--red)'; undoBtn.style.color = 'var(--red)';
+}
+function undo() {
+  if (!undoStack.length) return;
+  subtitles = JSON.parse(undoStack.pop());
+  if (subtitles.length) nextId = Math.max(...subtitles.map(s => s.id)) + 1;
+  if (cueMode && cueIndex > 0) {
+    cueIndex--;
+    tlLane.innerHTML = '';
+    for (let i = 0; i < cueIndex; i++) {
+      const s = subtitles.find(s => s.id === cueOrderFixed[i]);
+      if (s && s.end > s.start) addOrUpdateCueBlock(s);
+    }
+    updateCueBanner();
+  } else {
+    refreshAll();
+  }
+  showToast('Undone');
+  if (!undoStack.length) { undoBtn.disabled = true; undoBtn.style.opacity = '.4'; undoBtn.style.borderColor = ''; undoBtn.style.color = ''; }
+}
+undoBtn.onclick = undo;
+
+const video         = document.getElementById('videoEl');
+const subOverlay    = document.getElementById('subOverlay');
+const timeReadout   = document.getElementById('timeReadout');
+const tlPlayhead    = document.getElementById('tlPlayhead');
+const tlLane        = document.getElementById('tlLane');
+const tlInner       = document.getElementById('tlInner');
+const subList       = document.getElementById('subList');
+const subEmpty      = document.getElementById('subEmpty');
+const subCountBadge = document.getElementById('subCountBadge');
+const subTimeline   = document.getElementById('subTimeline');
+const PLAY  = '<polygon points="5 3 19 12 5 21"/>';
+const PAUSE = '<rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/>';
+
+// ── VIDEO LOAD ─────────────────────────────────────
+document.getElementById('loadVideoBtn').onclick = () => document.getElementById('videoInput').click();
+document.getElementById('videoPlaceholder').onclick = () => document.getElementById('videoInput').click();
+document.getElementById('videoInput').onchange = e => { const f = e.target.files[0]; if (f) loadFile(f); };
+function loadFile(f) {
+  const blobUrl = URL.createObjectURL(f);
+  video.src = blobUrl;
+  video.style.display = 'block';
+  document.getElementById('videoPlaceholder').style.display = 'none';
+  if (activeProjectId === null) {
+    const name = f.name.replace(/\.[^.]+$/, '');
+    const newProj = { id: Date.now(), name, videoName: f.name, videoBlobUrl: blobUrl, subtitles: [], nextId: 1 };
+    projects.push(newProj); activeProjectId = newProj.id;
+    subtitles = []; nextId = 1;
+  } else {
+    const cur = projects.find(p => p.id === activeProjectId);
+    if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; }
+  }
+  renderBin();
+}
+const videoArea = document.getElementById('videoArea');
+videoArea.addEventListener('dragover', e => e.preventDefault());
+videoArea.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('video/')) loadFile(f); });
+video.addEventListener('click', togglePlay);
+
+// ── PLAYBACK ───────────────────────────────────────
+const playBtn = document.getElementById('playBtn'), playIcon = document.getElementById('playIcon');
+function togglePlay() { if (!video.src) return; video.paused ? video.play() : video.pause(); }
+playBtn.onclick = togglePlay;
+video.onplay  = () => { playIcon.innerHTML = PAUSE; rafLoop(); };
+video.onpause = () => { playIcon.innerHTML = PLAY; };
+video.onended = () => { playIcon.innerHTML = PLAY; };
+document.getElementById('skipBackBtn').onclick = () => { video.currentTime = Math.max(0, video.currentTime - 5); tickUI(); };
+document.getElementById('skipFwdBtn').onclick  = () => { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); tickUI(); };
+document.getElementById('speedSel').onchange   = e => { video.playbackRate = parseFloat(e.target.value); };
+
+// ── RAF LOOP ───────────────────────────────────────
+function rafLoop() { tickUI(); if (!video.paused && !video.ended) requestAnimationFrame(rafLoop); }
+video.addEventListener('seeked', tickUI);
+video.addEventListener('timeupdate', tickUI);
+video.onloadedmetadata = () => { tickUI(); renderTimeline(); };
+
+function tickUI() {
+  const t = video.currentTime, d = video.duration || 0;
+  const p = d ? (t / d) * 100 : 0;
+  tlPlayhead.style.left = p + '%';
+  timeReadout.innerHTML = `<span>${fmtFull(t)}</span> / ${fmtFull(d)}`;
+  updateOverlay(t);
+  if (!video.paused) {
+    const innerW = tlInner.offsetWidth;
+    const viewW  = subTimeline.clientWidth;
+    const headX  = (p / 100) * innerW;
+    const sl     = subTimeline.scrollLeft;
+    if (headX < sl + viewW * 0.15 || headX > sl + viewW * 0.85) {
+      subTimeline.scrollLeft = headX - viewW / 2;
+    }
+  }
+}
+
+// ── PLAYHEAD DRAG ──────────────────────────────────
+tlPlayhead.addEventListener('mousedown', e => {
+  e.preventDefault(); e.stopPropagation();
+  function onMove(mv) {
+    const innerW = tlInner.offsetWidth;
+    const clickX = subTimeline.scrollLeft + (mv.clientX - subTimeline.getBoundingClientRect().left);
+    const pct    = Math.max(0, Math.min(1, clickX / innerW));
+    if (video.duration) { video.currentTime = pct * video.duration; tickUI(); }
+  }
+  function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
+// ── Click on timeline to seek ──────────────────────
+subTimeline.addEventListener('mousedown', e => {
+  if (e.target.closest('.tl-block') || e.target.closest('.tl-resize')) return;
+  if (e.target === tlPlayhead || tlPlayhead.contains(e.target)) return;
+  if (!video.duration) return;
+  function seekAt(ev) {
+    const innerW = tlInner.offsetWidth;
+    const clickX = subTimeline.scrollLeft + (ev.clientX - subTimeline.getBoundingClientRect().left);
+    const pct    = Math.max(0, Math.min(1, clickX / innerW));
+    video.currentTime = pct * video.duration; tickUI();
+  }
+  seekAt(e);
+  function onMove(mv) { seekAt(mv); }
+  function onUp()  { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
+// ── ZOOM (playhead-stable) ─────────────────────────
+const zoomRange = document.getElementById('zoomRange');
+const zoomLabel = document.getElementById('zoomLabel');
+
+function applyZoom(newZoom) {
+  // 1. Where is the playhead right now in pixels from viewport left?
+  const d = video.duration || 0;
+  const pct = d ? (video.currentTime / d) : 0;
+  const oldInnerW = tlInner.offsetWidth;
+  const headPixelAbs = pct * oldInnerW;            // absolute pixel in tl-inner
+  const headOffsetInView = headPixelAbs - subTimeline.scrollLeft; // pixel from left edge of viewport
+
+  // 2. Apply the new zoom
+  zoomLevel = newZoom;
+  zoomRange.value = newZoom;
+  zoomLabel.textContent = newZoom + '×';
+  tlInner.style.width = (newZoom * 100) + '%';
+  renderTimeline();
+
+  // 3. After reflow, set scrollLeft so the playhead stays at the same viewport pixel
+  requestAnimationFrame(() => {
+    const newInnerW = tlInner.offsetWidth;
+    const newHeadPixelAbs = pct * newInnerW;
+    subTimeline.scrollLeft = newHeadPixelAbs - headOffsetInView;
+    updateScrollThumb();
+  });
+}
+
+zoomRange.addEventListener('input', () => applyZoom(parseFloat(zoomRange.value)));
+document.getElementById('zoomOut').onclick = () => applyZoom(Math.max(1, parseFloat(zoomRange.value) - 0.5));
+document.getElementById('zoomIn').onclick  = () => applyZoom(Math.min(10, parseFloat(zoomRange.value) + 0.5));
+
+// ── TIMELINE MINI-SCROLL BAR ───────────────────────
+const tlScrollBar   = document.getElementById('tlScrollBar');
+const tlScrollTrack = document.getElementById('tlScrollTrack');
+const tlScrollThumb = document.getElementById('tlScrollThumb');
+
+function updateScrollThumb() {
+  const viewW  = subTimeline.clientWidth;
+  const innerW = tlInner.scrollWidth || viewW;
+  if (innerW <= viewW) { tlScrollBar.style.opacity = '0.3'; tlScrollBar.style.pointerEvents = 'none'; return; }
+  tlScrollBar.style.opacity = '1'; tlScrollBar.style.pointerEvents = '';
+  const ratio   = viewW / innerW;
+  const thumbW  = Math.max(24, tlScrollTrack.clientWidth * ratio);
+  const maxScroll = innerW - viewW;
+  const thumbLeft = (subTimeline.scrollLeft / maxScroll) * (tlScrollTrack.clientWidth - thumbW);
+  tlScrollThumb.style.width = thumbW + 'px';
+  tlScrollThumb.style.left  = Math.max(0, thumbLeft) + 'px';
+}
+
+tlScrollThumb.addEventListener('mousedown', e => {
+  e.preventDefault(); e.stopPropagation();
+  const startX = e.clientX, startScroll = subTimeline.scrollLeft;
+  const trackW = tlScrollTrack.clientWidth, thumbW = tlScrollThumb.clientWidth;
+  const innerW = tlInner.scrollWidth, viewW = subTimeline.clientWidth;
+  const maxScroll = innerW - viewW, maxThumb = trackW - thumbW;
+  tlScrollThumb.style.cursor = 'grabbing';
+  function onMove(mv) {
+    const ratio = (mv.clientX - startX) / maxThumb;
+    subTimeline.scrollLeft = Math.max(0, Math.min(maxScroll, startScroll + ratio * maxScroll));
+    updateScrollThumb();
+  }
+  function onUp() { tlScrollThumb.style.cursor = 'grab'; document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+tlScrollTrack.addEventListener('mousedown', e => {
+  if (e.target === tlScrollThumb) return;
+  const r = tlScrollTrack.getBoundingClientRect();
+  const pct = (e.clientX - r.left) / r.width;
+  subTimeline.scrollLeft = pct * (tlInner.scrollWidth - subTimeline.clientWidth);
+  updateScrollThumb();
+});
+subTimeline.addEventListener('scroll', updateScrollThumb);
+
+// ── RESIZE MODE ───────────────────────────────────
+let pushMode = false;
+const modeBtn = document.getElementById('modeBtn');
+modeBtn.addEventListener('click', () => {
+  pushMode = !pushMode;
+  modeBtn.textContent = pushMode ? '↦ Push' : '✂ Cut';
+  modeBtn.classList.toggle('push-mode', pushMode);
+});
+
+// ── IN / OUT POINTS ───────────────────────────────
+function setInPoint(t) {
+  inPoint = parseFloat(t.toFixed(3));
+  updateIOBadges();
+  renderTimeline();
+  showToast('IN → ' + fmtDisp(inPoint), 'yellow');
+}
+function setOutPoint(t) {
+  outPoint = parseFloat(t.toFixed(3));
+  updateIOBadges();
+  renderTimeline();
+  showToast('OUT → ' + fmtDisp(outPoint), 'yellow');
+}
+function clearInPoint()  { inPoint  = null; updateIOBadges(); renderTimeline(); }
+function clearOutPoint() { outPoint = null; updateIOBadges(); renderTimeline(); }
+
+function updateIOBadges() {
+  const inB  = document.getElementById('inBadge');
+  const outB = document.getElementById('outBadge');
+  if (inPoint  !== null) { inB.textContent  = 'IN ' + fmtDisp(inPoint);   inB.classList.add('set'); }
+  else                   { inB.textContent  = 'IN —:—';                    inB.classList.remove('set'); }
+  if (outPoint !== null) { outB.textContent = 'OUT ' + fmtDisp(outPoint); outB.classList.add('set'); }
+  else                   { outB.textContent = 'OUT —:—';                   outB.classList.remove('set'); }
+  // update import panel range display
+  const rangeText = document.getElementById('ioRangeText');
+  if (rangeText) {
+    if (inPoint !== null && outPoint !== null) {
+      rangeText.className = '';
+      rangeText.innerHTML = `<span class="io-range-in">IN ${fmtDisp(inPoint)}</span><span style="color:var(--text3)"> → </span><span class="io-range-out">OUT ${fmtDisp(outPoint)}</span>`;
+    } else if (inPoint !== null) {
+      rangeText.className = '';
+      rangeText.innerHTML = `<span class="io-range-in">IN ${fmtDisp(inPoint)}</span><span style="color:var(--text3)"> → OUT not set</span>`;
+    } else if (outPoint !== null) {
+      rangeText.className = '';
+      rangeText.innerHTML = `<span style="color:var(--text3)">IN not set → </span><span class="io-range-out">OUT ${fmtDisp(outPoint)}</span>`;
+    } else {
+      rangeText.className = 'io-range-none';
+      rangeText.textContent = 'No IN/OUT set — will use 10s each';
+    }
+  }
+}
+
+// Badge click = clear
+document.getElementById('inBadge').addEventListener('click',  () => { clearInPoint(); });
+document.getElementById('outBadge').addEventListener('click', () => { clearOutPoint(); });
+
+// ── CUE MODE ──────────────────────────────────────
+let cueMode = false, cueIndex = 0, cueOrderFixed = [];
+const cueBanner     = document.getElementById('cueBanner');
+const cueBannerText = document.getElementById('cueBannerText');
+const cueBannerIdx  = document.getElementById('cueBannerIdx');
+const cueBtn        = document.getElementById('cueBtn');
+
+function enterCueMode() {
+  if (!subtitles.length) return showToast('Import text first');
+  if (!video.src || video.readyState < 1) return showToast('Load a video first');
+  cueOrderFixed = [...subtitles].sort((a, b) => a.id - b.id).map(s => s.id);
+  cueMode = true; cueIndex = 0;
+  subtitles.forEach(s => { s.start = 0; s.end = 0; });
+  tlLane.innerHTML = '';
+  cueBtn.classList.add('cue-active');
+  updateCueBanner();
+  showToast('Cue ON — press M when each subtitle should start', 'yellow');
+}
+function exitCueMode(fromLastMark) {
+  cueMode = false;
+  cueBtn.classList.remove('cue-active');
+  cueBanner.classList.remove('active');
+  showToast(fromLastMark ? 'Cue complete ✓' : 'Cue cancelled', fromLastMark ? 'yellow' : '');
+  cueOrderFixed = [];
+  refreshAll();
+}
+function updateCueBanner() {
+  if (!cueMode) return;
+  if (cueIndex >= cueOrderFixed.length) { cueBanner.classList.remove('active'); return; }
+  const sub = subtitles.find(s => s.id === cueOrderFixed[cueIndex]);
+  if (!sub) { exitCueMode(true); return; }
+  const preview = sub.lines.join(' ');
+  cueBannerText.textContent = 'Next: ' + (preview.length > 60 ? preview.slice(0, 60) + '…' : preview);
+  cueBannerIdx.textContent  = (cueIndex + 1) + ' / ' + cueOrderFixed.length;
+  cueBanner.classList.add('active');
+}
+cueBtn.onclick = () => { cueMode ? exitCueMode(false) : enterCueMode(); };
+document.getElementById('cueBannerExit').onclick = () => exitCueMode(false);
+
+// ── MARK ──────────────────────────────────────────
+const markBtn = document.getElementById('markBtn');
+function doMark() {
+  if (!video.src || video.readyState < 1) { showToast('Load a video first'); return; }
+  const t = parseFloat(video.currentTime.toFixed(3));
+  if (cueMode) {
+    if (cueIndex >= cueOrderFixed.length) { exitCueMode(true); return; }
+    const curId = cueOrderFixed[cueIndex];
+    const cur   = subtitles.find(s => s.id === curId);
+    if (!cur) { cueIndex++; if (cueIndex < cueOrderFixed.length) updateCueBanner(); else exitCueMode(true); return; }
+    saveUndo();
+    if (cueIndex > 0) {
+      const prev = subtitles.find(s => s.id === cueOrderFixed[cueIndex - 1]);
+      if (prev && prev.start < t) { prev.end = t; addOrUpdateCueBlock(prev); }
+    }
+    const dur = video.duration && isFinite(video.duration) ? video.duration : 9999;
+    cur.start = t; cur.end = parseFloat(Math.min(dur, t + 10).toFixed(3));
+    subtitles.forEach(s => {
+      if (s.id === curId || s.end <= s.start) return;
+      if (s.start < cur.end && s.end > t) {
+        if (s.start >= t) s.start = cur.end; else s.end = t;
+        addOrUpdateCueBlock(s);
+      }
+    });
+    addOrUpdateCueBlock(cur);
+    cueIndex++;
+    markBtn.classList.add('mark-flash');
+    setTimeout(() => markBtn.classList.remove('mark-flash'), 350);
+    if (cueIndex >= cueOrderFixed.length) exitCueMode(true); else updateCueBanner();
+    return;
+  }
+  // normal mark
+  const sorted = [...subtitles].sort((a, b) => a.start - b.start);
+  if (selectedId !== null) {
+    const sub = subtitles.find(s => s.id === selectedId);
+    if (sub) {
+      saveUndo(); sub.start = t;
+      if (sub.end <= t) sub.end = parseFloat((t + DEFAULT_DUR).toFixed(3));
+      const idx = sorted.findIndex(s => s.id === selectedId);
+      if (idx < sorted.length - 1) selectedId = sorted[idx + 1].id;
+      refreshAll(); showToast('IN → ' + fmtDisp(t), 'yellow');
+    }
+  } else {
+    saveUndo();
+    const ns = { id: nextId++, start: t, end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
+    subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start); selectedId = ns.id;
+    refreshAll(); showToast('Added at ' + fmtDisp(t), 'yellow');
+  }
+  markBtn.classList.add('mark-flash');
+  setTimeout(() => markBtn.classList.remove('mark-flash'), 350);
+}
+markBtn.onclick = doMark;
+
+function addOrUpdateCueBlock(sub) {
+  const dur = (video.duration && isFinite(video.duration)) ? video.duration : 100;
+  let block = tlLane.querySelector(`.tl-block[data-id="${sub.id}"]`);
+  if (!block) {
+    block = document.createElement('div');
+    block.className = 'tl-block';
+    block.dataset.id = sub.id;
+    block.innerHTML = `<span>${safeHtml(sub.lines[0] || '')}</span>`;
+    tlLane.appendChild(block);
+  }
+  block.style.left  = (sub.start / dur * 100) + '%';
+  block.style.width = Math.max(0.5, (sub.end - sub.start) / dur * 100) + '%';
+}
+
+// ── KEYBOARD ──────────────────────────────────────
+document.addEventListener('keydown', e => {
+  const tag  = document.activeElement.tagName;
+  const inI  = tag === 'INPUT' || tag === 'SELECT';
+  const inT  = tag === 'TEXTAREA';
+  const inCE = document.activeElement.isContentEditable;
+
+  if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !inT && !inCE) { e.preventDefault(); undo(); return; }
+  if (e.key === ' ' && !inT && !inCE) { e.preventDefault(); togglePlay(); return; }
+  if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !inI && !inT && !inCE) { e.preventDefault(); clearInPoint(); clearOutPoint(); showToast('IN/OUT cleared'); return; }
+  if (e.key === 'm' && !inI && !inT && !inCE) { e.preventDefault(); doMark(); return; }
+
+  // I key: set IN point (only when not in any text input)
+  if (e.key === 'i' && !inI && !inT && !inCE) {
+    e.preventDefault();
+    setInPoint(video.currentTime);
+    return;
+  }
+  // O key: set OUT point (only when not in any text input)
+  if (e.key === 'o' && !inI && !inT && !inCE) {
+    e.preventDefault();
+    setOutPoint(video.currentTime);
+    return;
+  }
+
+  // Enter while playing → pause + select + edit current subtitle
+  if (e.key === 'Enter' && !inI && !inT && !inCE) {
+    if (!video.paused) {
+      e.preventDefault();
+      video.pause();
+      const t = video.currentTime;
+      const active = subtitles.filter(s => t >= s.start && t <= s.end);
+      if (active.length) {
+        const sub = active[active.length - 1];
+        switchTab('list');
+        selectSub(sub.id);
+        setTimeout(() => {
+          const ed = document.querySelector(`.sr-editor[data-id="${sub.id}"]`);
+          if (ed) {
+            ed.focus();
+            // move cursor to end
+            const range = document.createRange();
+            range.selectNodeContents(ed);
+            range.collapse(false);
+            const sel = window.getSelection();
+            sel.removeAllRanges();
+            sel.addRange(range);
+          }
+        }, 30);
+      }
+      return;
+    }
+    // Enter while paused → jump to selected sub
+    if (selectedId !== null) {
+      e.preventDefault();
+      const s = subtitles.find(s => s.id === selectedId);
+      if (s) { video.currentTime = s.start; tickUI(); }
+    }
+    return;
+  }
+
+  if (e.key === 'Delete' && !inI && !inT && !inCE) {
+    e.preventDefault();
+    if (selectedIds.size > 0) {
+      saveUndo();
+      [...selectedIds].forEach(id => { const idx = subtitles.findIndex(s => s.id === id); if (idx > -1) subtitles.splice(idx, 1); });
+      selectedIds.clear(); selectedId = null; refreshAll(); showToast('Deleted');
+    }
+    return;
+  }
+  if (!inI && !inT && !inCE && (e.key === 'ArrowLeft' || e.key === 'ArrowRight')) {
+    e.preventDefault();
+    const dir = e.key === 'ArrowLeft' ? -1 : 1, step = e.shiftKey ? 0.1 : e.ctrlKey ? 5 : 1;
+    video.currentTime = Math.max(0, Math.min(video.duration || 0, video.currentTime + dir * step));
+    tickUI(); return;
+  }
+  if (!inI && !inT && !inCE && (e.key === 'ArrowUp' || e.key === 'ArrowDown')) {
+    e.preventDefault();
+    const sorted = [...subtitles].sort((a, b) => a.start - b.start), idx = sorted.findIndex(s => s.id === selectedId);
+    if (e.key === 'ArrowUp'   && idx > 0)               selectSub(sorted[idx - 1].id);
+    if (e.key === 'ArrowDown' && idx < sorted.length-1) selectSub(sorted[idx + 1].id);
+  }
+  if (inCE && (e.ctrlKey || e.metaKey)) {
+    if (e.key === 'b') { e.preventDefault(); try { document.execCommand('bold'); } catch(err) {} saveEditorFromActive(); }
+    if (e.key === 'i') { e.preventDefault(); try { document.execCommand('italic'); } catch(err) {} saveEditorFromActive(); }
+  }
+});
+
+function saveEditorFromActive() {
+  const el = document.activeElement;
+  if (!el || !el.classList.contains('sr-editor')) return;
+  const id = parseInt(el.dataset.id);
+  const sub = subtitles.find(s => s.id === id); if (!sub) return;
+  let raw = el.innerHTML
+    .replace(/<strong>([\s\S]*?)<\/strong>/gi, '<b>$1</b>')
+    .replace(/<em>([\s\S]*?)<\/em>/gi, '<i>$1</i>')
+    .replace(/<br\s*\/?>/gi, '\n').replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+    .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1')
+    .replace(/<(?!\/?[bi])[^>]*>/gi, '');
+  sub.lines = raw.split('\n').map(l => l.trimEnd());
+  const bl = document.querySelector(`.tl-block[data-id="${id}"] span`);
+  if (bl) bl.innerHTML = safeHtml(sub.lines[0] || '');
+  updateOverlay(video.currentTime);
+}
+
+// ── CRUD ──────────────────────────────────────────
+function addSub(t) {
+  saveUndo(); t = t !== undefined ? t : (video.currentTime || 0);
+  const ns = { id: nextId++, start: parseFloat(t.toFixed(3)), end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
+  subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start); selectedId = ns.id;
+  refreshAll();
+}
+function deleteSub(id) {
+  saveUndo(); const idx = subtitles.findIndex(s => s.id === id); subtitles.splice(idx, 1);
+  selectedId = subtitles[Math.min(idx, subtitles.length - 1)]?.id ?? null;
+  selectedIds.delete(id); refreshAll(); showToast('Deleted');
+}
+function mergeSub(id) {
+  const sorted = [...subtitles].sort((a, b) => a.start - b.start), idx = sorted.findIndex(s => s.id === id);
+  if (idx === sorted.length - 1) return showToast('No next subtitle');
+  saveUndo();
+  const a = subtitles.find(s => s.id === sorted[idx].id), b = subtitles.find(s => s.id === sorted[idx + 1].id);
+  a.lines = [...a.lines, ...b.lines]; a.end = b.end;
+  subtitles.splice(subtitles.indexOf(b), 1); selectedId = a.id;
+  refreshAll(); showToast('Merged');
+}
+function splitSub(id, cursor) {
+  const sub = subtitles.find(s => s.id === id); if (!sub) return;
+  const full = sub.lines.join('\n'), pos = (cursor > 0 && cursor <= full.length) ? cursor : Math.floor(full.length / 2);
+  const before = full.slice(0, pos).trimEnd(), after = full.slice(pos).trimStart();
+  if (!after) return showToast('Nothing after cursor');
+  saveUndo();
+  const mid = (sub.start + sub.end) / 2;
+  sub.lines = before ? before.split('\n') : [''];
+  sub.end = parseFloat(mid.toFixed(3));
+  const dur = sub.end - sub.start;
+  const ns = { id: nextId++, start: parseFloat(mid.toFixed(3)), end: parseFloat((mid + dur).toFixed(3)), lines: after.split('\n') };
+  subtitles.splice(subtitles.indexOf(sub) + 1, 0, ns); selectedId = ns.id;
+  refreshAll(); showToast('Split');
+}
+document.getElementById('addSubBtn').onclick = () => addSub(video.currentTime || 0);
+
+// ── SELECT ─────────────────────────────────────────
+function selectSub(id) {
+  selectedId = id; selectedIds = new Set([id]);
+  applySelectionHighlights();
+  const row = document.querySelector(`.sub-row[data-id="${id}"]`);
+  const scrollEl = document.querySelector('.sub-list-left');
+  if (!row || !scrollEl) return;
+  const rowRect  = row.getBoundingClientRect();
+  const contRect = scrollEl.getBoundingClientRect();
+  const relTop   = rowRect.top - contRect.top + scrollEl.scrollTop;
+  const viewH    = scrollEl.clientHeight, rowH = row.offsetHeight;
+  if (relTop < scrollEl.scrollTop || relTop + rowH > scrollEl.scrollTop + viewH) {
+    scrollEl.scrollTo({ top: relTop - viewH / 2 + rowH / 2, behavior: 'smooth' });
+  }
+}
+function applySelectionHighlights() {
+  document.querySelectorAll('.sub-row').forEach(r => r.classList.toggle('selected', r.dataset.id == selectedId));
+  document.querySelectorAll('.tl-block').forEach(b => b.classList.toggle('selected', selectedIds.has(parseInt(b.dataset.id))));
+  const badge = document.getElementById('groupBadge');
+  if (badge) { badge.textContent = selectedIds.size > 1 ? selectedIds.size + ' selected' : ''; badge.style.display = selectedIds.size > 1 ? '' : 'none'; }
+}
+
+// ── OVERLAY ────────────────────────────────────────
+function updateOverlay(t) {
+  const active = subtitles.filter(s => t >= s.start && t <= s.end);
+  if (!active.length) { subOverlay.innerHTML = ''; highlightPlaying(null); return; }
+  const sub = active[active.length - 1];
+  subOverlay.innerHTML = sub.lines.map(l => `<span class="sub-overlay-line">${renderLine(l)}</span>`).join('');
+  highlightPlaying(sub.id);
+}
+function highlightPlaying(id) {
+  document.querySelectorAll('.sub-row').forEach(r => r.classList.toggle('playing', r.dataset.id == id));
+  document.querySelectorAll('.tl-block').forEach(b => b.classList.toggle('active', b.dataset.id == id));
+  if (id === null) return;
+  const row = document.querySelector(`.sub-row[data-id="${id}"]`);
+  const scrollEl = document.querySelector('.sub-list-left');
+  if (!row || !scrollEl) return;
+  const rowRect  = row.getBoundingClientRect();
+  const contRect = scrollEl.getBoundingClientRect();
+  const relTop   = rowRect.top - contRect.top + scrollEl.scrollTop;
+  const rowH = row.offsetHeight, viewH = scrollEl.clientHeight;
+  if (relTop < scrollEl.scrollTop || relTop + rowH > scrollEl.scrollTop + viewH) {
+    scrollEl.scrollTo({ top: relTop - viewH / 2 + rowH / 2, behavior: 'smooth' });
+  }
+}
+
+// ── RENDER LIST ────────────────────────────────────
+function renderList() {
+  const sorted = [...subtitles].sort((a, b) => a.start - b.start);
+  subCountBadge.textContent = sorted.length;
+  subEmpty.style.display = sorted.length ? 'none' : '';
+  subList.innerHTML = '';
+  sorted.forEach((sub) => {
+    const row = document.createElement('div');
+    row.className = 'sub-row' + (sub.id === selectedId ? ' selected' : '');
+    row.dataset.id = sub.id;
+    row.innerHTML = `
+      <div class="sr-num">${sorted.indexOf(sub) + 1}</div>
+      <div class="sr-timing">
+        <div class="sr-time-row">
+          <span class="sr-label">IN</span>
+          <input class="t-input" data-field="start" data-id="${sub.id}" value="${fmtDisp(sub.start)}">
+          <div class="nudge-pair">
+            <button class="nudge-btn" data-field="start" data-delta="-0.1" data-id="${sub.id}">−.1</button>
+            <button class="nudge-btn" data-field="start" data-delta="0.1"  data-id="${sub.id}">+.1</button>
+          </div>
+          <button class="set-btn" data-setfield="start" data-id="${sub.id}">←now</button>
+        </div>
+        <div class="sr-time-row">
+          <span class="sr-label">OUT</span>
+          <input class="t-input" data-field="end" data-id="${sub.id}" value="${fmtDisp(sub.end)}">
+          <div class="nudge-pair">
+            <button class="nudge-btn" data-field="end" data-delta="-0.1" data-id="${sub.id}">−.1</button>
+            <button class="nudge-btn" data-field="end" data-delta="0.1"  data-id="${sub.id}">+.1</button>
+          </div>
+          <button class="set-btn" data-setfield="end" data-id="${sub.id}">←now</button>
+        </div>
+        <div class="dur-badge">${(sub.end - sub.start).toFixed(2)}s</div>
+      </div>
+      <div class="sr-text-col">
+        <div class="sr-editor" data-id="${sub.id}" contenteditable="true" spellcheck="true" data-placeholder="Subtitle text…">${sub.lines.map(l => safeHtml(l)).join('<br>')}</div>
+        <div class="sr-actions">
+          <button class="sr-btn" data-action="goto"   data-id="${sub.id}">▶ Jump</button>
+          <button class="sr-btn" data-action="merge"  data-id="${sub.id}">⊕ Merge↓</button>
+          <button class="sr-btn" data-action="split"  data-id="${sub.id}">⌥ Split</button>
+          <button class="sr-btn danger" data-action="delete" data-id="${sub.id}">✕ Del</button>
+          <span class="sr-hint"><kbd>Shift+Enter</kbd> line break · <kbd>Ctrl+Enter</kbd> split · <kbd>Ctrl+B/I</kbd> bold/italic</span>
+        </div>
+      </div>`;
+    subList.appendChild(row);
+
+    const ed = row.querySelector('.sr-editor');
+
+    function saveEditorContent() {
+      const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+      let raw = ed.innerHTML
+        .replace(/<strong>([\s\S]*?)<\/strong>/gi, '<b>$1</b>')
+        .replace(/<em>([\s\S]*?)<\/em>/gi, '<i>$1</i>')
+        .replace(/<br\s*\/?>/gi, '\n').replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+        .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1')
+        .replace(/<(?!\/?[bi])[^>]*>/gi, '');
+      s.lines = raw.split('\n').map(l => l.trimEnd());
+      const bl = document.querySelector(`.tl-block[data-id="${sub.id}"] span`);
+      if (bl) bl.innerHTML = safeHtml(s.lines[0] || '');
+      updateOverlay(video.currentTime);
+    }
+
+    ed.addEventListener('focus', () => selectSub(sub.id));
+    ed.addEventListener('click', () => selectSub(sub.id));
+    let undoDebounce = null;
+    ed.addEventListener('input', () => {
+      clearTimeout(undoDebounce); undoDebounce = setTimeout(saveUndo, 500);
+      saveEditorContent();
+    });
+    ed.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.ctrlKey) {
+        e.preventDefault();
+        try {
+          const sel = window.getSelection();
+          if (sel && sel.rangeCount > 0) {
+            const range = sel.getRangeAt(0);
+            const preRange = document.createRange();
+            preRange.setStart(ed, 0); preRange.setEnd(range.startContainer, range.startOffset);
+            const preText = preRange.toString();
+            saveEditorContent(); splitSub(sub.id, preText.length);
+          }
+        } catch(err) { saveEditorContent(); splitSub(sub.id, 0); }
+        return;
+      }
+      if (e.key === 'Enter' && e.shiftKey) return;
+      if (e.key === 'Enter' && !e.shiftKey && !e.ctrlKey) { e.preventDefault(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') {
+        e.preventDefault(); try { document.execCommand('bold'); } catch(err) {} saveEditorContent();
+      }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') {
+        e.preventDefault(); try { document.execCommand('italic'); } catch(err) {} saveEditorContent();
+      }
+    });
+    ed.addEventListener('paste', e => {
+      e.preventDefault();
+      const html = e.clipboardData.getData('text/html'), plain = e.clipboardData.getData('text/plain');
+      let text = plain;
+      if (html) {
+        const tmp = document.createElement('div'); tmp.innerHTML = html;
+        tmp.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+        tmp.querySelectorAll('p,div,li').forEach(el => { if (el.nextSibling) el.insertAdjacentText('afterend', '\n'); });
+        text = tmp.innerText || tmp.textContent;
+      }
+      document.execCommand('insertText', false, text);
+      saveEditorContent();
+    });
+    row.querySelectorAll('.t-input').forEach(inp => {
+      inp.addEventListener('focus', () => selectSub(sub.id));
+      inp.addEventListener('blur', () => {
+        const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+        saveUndo(); s[inp.dataset.field] = parseFloat(Math.max(0, parseTime(inp.value)).toFixed(3));
+        inp.value = fmtDisp(s[inp.dataset.field]); updateDurBadge(row, s); refreshTimeline();
+      });
+      inp.addEventListener('keydown', e => {
+        if (e.key === 'Enter') { inp.blur(); return; }
+        if (e.key === 'ArrowUp' || e.key === 'ArrowDown') {
+          e.preventDefault(); const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+          saveUndo(); const field = inp.dataset.field, step = e.shiftKey ? 0.1 : 1;
+          s[field] = parseFloat(Math.max(0, s[field] + (e.key === 'ArrowUp' ? step : -step)).toFixed(3));
+          inp.value = fmtDisp(s[field]); updateDurBadge(row, s); refreshTimeline();
+        }
+      });
+    });
+    row.querySelectorAll('.nudge-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+        saveUndo(); const field = btn.dataset.field, delta = parseFloat(btn.dataset.delta);
+        s[field] = parseFloat(Math.max(0, s[field] + delta).toFixed(3));
+        const inp = row.querySelector(`.t-input[data-field="${field}"]`);
+        if (inp) inp.value = fmtDisp(s[field]);
+        updateDurBadge(row, s); refreshTimeline();
+      });
+    });
+    row.querySelectorAll('.set-btn').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+        saveUndo(); const field = btn.dataset.setfield;
+        s[field] = parseFloat(video.currentTime.toFixed(3));
+        const inp = row.querySelector(`.t-input[data-field="${field}"]`);
+        if (inp) inp.value = fmtDisp(s[field]);
+        updateDurBadge(row, s); refreshTimeline();
+        showToast(field === 'start' ? 'IN set' : 'OUT set');
+      });
+    });
+    row.addEventListener('click', e => {
+      if (['INPUT','BUTTON'].includes(e.target.tagName)) return;
+      selectSub(sub.id); row.querySelector('.sr-editor').focus();
+    });
+    row.querySelectorAll('[data-action]').forEach(btn => {
+      btn.addEventListener('click', e => {
+        e.stopPropagation(); const id = parseInt(btn.dataset.id), action = btn.dataset.action;
+        if (action === 'delete') deleteSub(id);
+        else if (action === 'merge') mergeSub(id);
+        else if (action === 'split') { const ta2 = row.querySelector('.sr-editor'); splitSub(id, 0); }
+        else if (action === 'goto') { const s = subtitles.find(s => s.id === id); if (s) { video.currentTime = s.start; tickUI(); selectSub(id); } }
+      });
+    });
+  });
+}
+
+function updateDurBadge(row, sub) { const b = row.querySelector('.dur-badge'); if (b) b.textContent = (sub.end - sub.start).toFixed(2) + 's'; }
+function refreshTimeline() { renderTimeline(); }
+
+function applyMarkdown(text) {
+  return text
+    .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/__(.+?)__/g, '<b>$1</b>')
+    .replace(/\*(.+?)\*/g, '<i>$1</i>').replace(/_(.+?)_/g, '<i>$1</i>');
+}
+
+// ── TIMELINE LANE LISTENERS ─────────────────────────
+let laneListenersAttached = false;
+function attachLaneListeners() {
+  if (laneListenersAttached) return;
+  laneListenersAttached = true;
+  document.getElementById('subTimeline').addEventListener('mousedown', e => {
+    const onBlock    = e.target.closest && e.target.closest('.tl-block');
+    const onResize   = e.target.classList.contains('tl-resize');
+    const onPlayhead = e.target === tlPlayhead || tlPlayhead.contains(e.target);
+    if (onBlock || onResize || onPlayhead) return;
+    const laneRect = tlLane.getBoundingClientRect();
+    const startX   = e.clientX - laneRect.left;
+    let boxEl = null, didDrag = false;
+    function onMove(mv) {
+      const curX = mv.clientX - laneRect.left;
+      if (!didDrag && Math.abs(curX - startX) < 5) return;
+      didDrag = true;
+      if (!boxEl) {
+        selectedIds.clear(); selectedId = null;
+        boxEl = document.createElement('div');
+        boxEl.className = 'tl-select-box';
+        tlLane.appendChild(boxEl);
+      }
+      const l = Math.max(0, Math.min(startX, curX)), r = Math.min(laneRect.width, Math.max(startX, curX));
+      boxEl.style.left = l + 'px'; boxEl.style.width = Math.max(0, r - l) + 'px';
+      const dur = video.duration || 100;
+      const lSec = (l / laneRect.width) * dur, rSec = (r / laneRect.width) * dur;
+      selectedIds.clear();
+      subtitles.forEach(s => { if (s.end > s.start && s.start < rSec && s.end > lSec) selectedIds.add(s.id); });
+      selectedId = selectedIds.size ? [...selectedIds][0] : null;
+      applySelectionHighlights();
+    }
+    function onUp() {
+      if (boxEl) { boxEl.remove(); boxEl = null; }
+      if (!didDrag) { selectedIds.clear(); selectedId = null; applySelectionHighlights(); }
+      document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+    }
+    document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+  });
+}
+
+// ── TIMELINE ───────────────────────────────────────
+function renderTimeline() {
+  const dur = video.duration || 100;
+  tlLane.style.pointerEvents = '';
+  tlLane.innerHTML = '';
+  attachLaneListeners();
+
+  // IN/OUT band + markers (drawn on tl-inner so they scale with zoom)
+  if (inPoint !== null || outPoint !== null) {
+    if (inPoint !== null && outPoint !== null) {
+      const band = document.createElement('div');
+      band.className = 'tl-io-band';
+      band.style.left  = (inPoint  / dur * 100) + '%';
+      band.style.width = Math.max(0, (outPoint - inPoint) / dur * 100) + '%';
+      tlLane.appendChild(band);
+    }
+    if (inPoint !== null) {
+      const m = document.createElement('div');
+      m.className = 'tl-in-marker';
+      m.style.left = (inPoint / dur * 100) + '%';
+      tlLane.appendChild(m);
+    }
+    if (outPoint !== null) {
+      const m = document.createElement('div');
+      m.className = 'tl-out-marker';
+      m.style.left = (outPoint / dur * 100) + '%';
+      tlLane.appendChild(m);
+    }
+  }
+
+  [...subtitles]
+    .filter(sub => sub.end > sub.start)
+    .sort((a, b) => a.start - b.start)
+    .forEach(sub => {
+      const block = document.createElement('div');
+      block.className = 'tl-block' + (selectedIds.has(sub.id) ? ' selected' : '');
+      block.dataset.id = sub.id;
+      block.style.left   = (sub.start / dur * 100) + '%';
+      block.style.width  = Math.max(0.3, (sub.end - sub.start) / dur * 100) + '%';
+      block.style.cursor = 'grab';
+      block.innerHTML    = `<div class="tl-resize tl-resize-l" data-id="${sub.id}" data-edge="start"></div><span>${safeHtml(sub.lines[0] || '')}</span><div class="tl-resize tl-resize-r" data-id="${sub.id}" data-edge="end"></div>`;
+
+      block.addEventListener('mousedown', e => {
+        const onResize = e.target.classList.contains('tl-resize');
+        if (onResize) return;
+        e.preventDefault(); e.stopPropagation();
+        if (e.shiftKey) {
+          if (selectedIds.has(sub.id)) { selectedIds.delete(sub.id); if (selectedId === sub.id) selectedId = selectedIds.size ? [...selectedIds][0] : null; }
+          else { selectedIds.add(sub.id); selectedId = sub.id; }
+          applySelectionHighlights(); return;
+        }
+        if (!selectedIds.has(sub.id)) selectSub(sub.id);
+        const origPos = new Map();
+        selectedIds.forEach(id => { const s = subtitles.find(s => s.id === id); if (s) origPos.set(id, { start: s.start, end: s.end, dur: s.end - s.start }); });
+        const minStart = Math.min(...[...origPos.values()].map(p => p.start));
+        const maxEnd   = Math.max(...[...origPos.values()].map(p => p.end));
+        const origSubStart = origPos.get(sub.id)?.start ?? sub.start;
+        const grabLaneRect = tlLane.getBoundingClientRect();
+        const grabSec = (e.clientX - grabLaneRect.left) / grabLaneRect.width * dur;
+        const offsetSec = grabSec - origSubStart;
+        const frozenPlayhead = video.currentTime;
+        let moved = false, isShiftHeld = e.shiftKey || pushMode, dragGhosts = [], dragSnapEl = null, dragSnapTarget = null;
+
+        function removeDragGhosts() { dragGhosts.forEach(g => g.remove()); dragGhosts = []; }
+        function removeDragSnap()   { if (dragSnapEl) { dragSnapEl.remove(); dragSnapEl = null; } dragSnapTarget = null; }
+
+        function calcDragSnap(delta) {
+          const gs = Math.min(...[...origPos.values()].map(p => p.start + delta));
+          const ge = Math.max(...[...origPos.values()].map(p => p.end   + delta));
+          const candidates = [frozenPlayhead];
+          [...subtitles].forEach(s => { if (!selectedIds.has(s.id) && s.end > s.start) candidates.push(s.start, s.end); });
+          let best = null, bestDist = Infinity;
+          candidates.forEach(t => {
+            const dS = Math.abs(gs - t), dE = Math.abs(ge - t);
+            if (dS < bestDist) { bestDist = dS; best = delta + (t - gs); }
+            if (dE < bestDist) { bestDist = dE; best = delta + (t - ge); }
+          });
+          return best !== null ? { delta: best } : null;
+        }
+
+        function showDragGhosts(delta, useShift) {
+          removeDragGhosts();
+          const sorted2 = [...subtitles].sort((a, b) => a.start - b.start);
+          selectedIds.forEach(id => {
+            const orig = origPos.get(id); if (!orig) return;
+            const ns = orig.start + delta, ne = orig.end + delta;
+            sorted2.forEach(other => {
+              if (selectedIds.has(other.id)) return;
+              if (other.start < ne && other.end > ns) {
+                const g = document.createElement('div');
+                if (useShift) {
+                  g.className = 'tl-ghost ghost-push';
+                  const pd = ne - other.start;
+                  g.style.left  = ((other.start + pd) / dur * 100) + '%';
+                  g.style.width = Math.max(0.3, (other.end - other.start) / dur * 100) + '%';
+                } else {
+                  g.className = 'tl-ghost ghost-cut';
+                  if (other.start < ns) { g.style.left = (other.start/dur*100)+'%'; g.style.width = Math.max(0.3,(ns-other.start)/dur*100)+'%'; }
+                  else { g.style.left = (ne/dur*100)+'%'; g.style.width = Math.max(0.3,(other.end-ne)/dur*100)+'%'; }
+                }
+                tlLane.appendChild(g); dragGhosts.push(g);
+              }
+            });
+          });
+        }
+
+        function onMove(mv) {
+          isShiftHeld = mv.shiftKey || pushMode;
+          const lr = tlLane.getBoundingClientRect();
+          const pct = Math.max(0, Math.min(1, (mv.clientX - lr.left) / lr.width));
+          const rawDelta = pct * dur - offsetSec - origSubStart;
+          const clampedDelta = parseFloat(Math.max(-minStart, Math.min(dur - maxEnd, rawDelta)).toFixed(3));
+          if (!moved && Math.abs(clampedDelta) > 0.02) { saveUndo(); moved = true; document.body.style.cursor = 'grabbing'; }
+          if (!moved) return;
+          if (mv.ctrlKey) {
+            const snap = calcDragSnap(clampedDelta);
+            if (snap) {
+              if (dragSnapEl) dragSnapEl.remove();
+              dragSnapEl = document.createElement('div');
+              dragSnapEl.className = 'tl-snap-indicator';
+              const snapT = Math.min(...[...origPos.values()].map(p => p.start + snap.delta));
+              dragSnapEl.style.left = (snapT / dur * 100) + '%';
+              tlLane.appendChild(dragSnapEl); dragSnapTarget = snap;
+            }
+            const applyDelta = snap ? snap.delta : clampedDelta;
+            selectedIds.forEach(id => {
+              const s = subtitles.find(s => s.id === id), orig = origPos.get(id); if (!s || !orig) return;
+              s.start = parseFloat(Math.max(0, orig.start + applyDelta).toFixed(3));
+              s.end   = parseFloat((orig.end + applyDelta).toFixed(3));
+              const bl = tlLane.querySelector(`.tl-block[data-id="${id}"]`);
+              if (bl) { bl.style.left = (s.start/dur*100)+'%'; bl.style.width = Math.max(0.3,orig.dur/dur*100)+'%'; }
+            });
+          } else {
+            removeDragSnap(); dragSnapTarget = null;
+            selectedIds.forEach(id => {
+              const s = subtitles.find(s => s.id === id), orig = origPos.get(id); if (!s || !orig) return;
+              s.start = parseFloat((orig.start + clampedDelta).toFixed(3));
+              s.end   = parseFloat((orig.end   + clampedDelta).toFixed(3));
+              const bl = tlLane.querySelector(`.tl-block[data-id="${id}"]`);
+              if (bl) { bl.style.left = (s.start/dur*100)+'%'; bl.style.width = Math.max(0.3,orig.dur/dur*100)+'%'; }
+              const row = document.querySelector(`.sub-row[data-id="${id}"]`);
+              if (row) {
+                const iS = row.querySelector('.t-input[data-field="start"]');
+                const iE = row.querySelector('.t-input[data-field="end"]');
+                if (iS) iS.value = fmtDisp(s.start); if (iE) iE.value = fmtDisp(s.end);
+                updateDurBadge(row, s);
+              }
+            });
+            showDragGhosts(clampedDelta, isShiftHeld);
+          }
+        }
+
+        function onUp() {
+          document.body.style.cursor = ''; removeDragGhosts(); removeDragSnap();
+          document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+          if (!moved) { video.currentTime = origSubStart; tickUI(); return; }
+          const useShift = isShiftHeld;
+          const sorted   = [...subtitles].sort((a, b) => a.start - b.start);
+          if (useShift) {
+            const groupStart = Math.min(...[...selectedIds].map(id => subtitles.find(s=>s.id===id)?.start ?? Infinity));
+            const groupEnd   = Math.max(...[...selectedIds].map(id => subtitles.find(s=>s.id===id)?.end ?? 0));
+            const firstHit   = sorted.find(other => !selectedIds.has(other.id) && other.start < groupEnd && other.end > groupStart);
+            if (firstHit) {
+              const pushDelta = groupEnd - firstHit.start;
+              const hitIdx = sorted.indexOf(firstHit);
+              for (let k = hitIdx; k < sorted.length; k++) {
+                if (selectedIds.has(sorted[k].id)) continue;
+                const ns = subtitles.find(s => s.id === sorted[k].id);
+                if (ns) { ns.start = parseFloat((ns.start + pushDelta).toFixed(3)); ns.end = parseFloat((ns.end + pushDelta).toFixed(3)); }
+              }
+            }
+          } else {
+            selectedIds.forEach(id => {
+              const s = subtitles.find(s => s.id === id); if (!s) return;
+              sorted.forEach(other => {
+                if (selectedIds.has(other.id)) return;
+                if (other.start < s.end && other.end > s.start) {
+                  if (other.start < s.start) other.end = Math.min(other.end, s.start);
+                  else other.start = Math.max(other.start, s.end);
+                }
+              });
+            });
+          }
+          refreshAll();
+        }
+        document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+      });
+      tlLane.appendChild(block);
+    });
+
+  // resize handles
+  tlLane.querySelectorAll('.tl-resize').forEach(handle => {
+    handle.addEventListener('mousedown', e => {
+      e.stopPropagation(); e.preventDefault();
+      const id = parseInt(handle.dataset.id), edge = handle.dataset.edge;
+      const sub = subtitles.find(s => s.id === id); if (!sub) return;
+      const dur2 = video.duration || 100;
+      const sorted = [...subtitles].filter(s => s.end > s.start).sort((a, b) => a.start - b.start);
+      const subIdx = sorted.findIndex(s => s.id === id);
+      const origAll = new Map();
+      subtitles.forEach(s => origAll.set(s.id, { start: s.start, end: s.end }));
+      let moved = false, ghostEl = null, snapEl = null, snapTarget = null;
+      let isShiftHeld = e.shiftKey || pushMode;
+      const frozenPlayhead = video.currentTime;
+      selectSub(id);
+
+      function removeGhost() { if (ghostEl) { ghostEl.remove(); ghostEl = null; } }
+      function removeSnap()  { if (snapEl)  { snapEl.remove();  snapEl  = null; } }
+
+      function calcSnap(currentT) {
+        const candidates = [frozenPlayhead];
+        sorted.forEach(s => { if (s.id !== id) { candidates.push(s.start, s.end); } });
+        let best = null, bestDist = Infinity;
+        candidates.forEach(t => { const d = Math.abs(t - currentT); if (d < bestDist) { bestDist = d; best = t; } });
+        return best;
+      }
+
+      function showGhost(useShift) {
+        removeGhost();
+        if (edge === 'end' && subIdx < sorted.length - 1) {
+          const next = subtitles.find(s => s.id === sorted[subIdx + 1].id); if (!next) return;
+          const origNext = origAll.get(next.id); if (!origNext) return;
+          if (!useShift && sub.end <= origNext.start) return;
+          ghostEl = document.createElement('div');
+          ghostEl.className = useShift ? 'tl-ghost ghost-push' : 'tl-ghost ghost-cut';
+          if (useShift) {
+            const delta = sub.end - origAll.get(id).end;
+            ghostEl.style.left  = ((origNext.start + delta) / dur2 * 100) + '%';
+            ghostEl.style.width = Math.max(0.3, (origNext.end - origNext.start) / dur2 * 100) + '%';
+          } else {
+            ghostEl.style.left  = (sub.end / dur2 * 100) + '%';
+            ghostEl.style.width = Math.max(0.3, (origNext.end - sub.end) / dur2 * 100) + '%';
+          }
+          tlLane.appendChild(ghostEl);
+        }
+        if (edge === 'start' && subIdx > 0) {
+          const prev = subtitles.find(s => s.id === sorted[subIdx - 1].id); if (!prev) return;
+          const origPrev = origAll.get(prev.id); if (!origPrev) return;
+          if (!useShift && sub.start >= origPrev.end) return;
+          ghostEl = document.createElement('div');
+          ghostEl.className = useShift ? 'tl-ghost ghost-push' : 'tl-ghost ghost-cut';
+          if (useShift) {
+            const delta = sub.start - origAll.get(id).start;
+            ghostEl.style.left  = ((origPrev.start + delta) / dur2 * 100) + '%';
+            ghostEl.style.width = Math.max(0.3, (origPrev.end - origPrev.start) / dur2 * 100) + '%';
+          } else {
+            ghostEl.style.left  = (origPrev.start / dur2 * 100) + '%';
+            ghostEl.style.width = Math.max(0.3, (sub.start - origPrev.start) / dur2 * 100) + '%';
+          }
+          tlLane.appendChild(ghostEl);
+        }
+      }
+
+      function onMove(mv) {
+        isShiftHeld = mv.shiftKey || pushMode;
+        const lr = tlLane.getBoundingClientRect();
+        const pct = Math.max(0, Math.min(1, (mv.clientX - lr.left) / lr.width));
+        const newT = parseFloat((pct * dur2).toFixed(3));
+        if (!moved) { saveUndo(); moved = true; document.body.style.cursor = 'ew-resize'; }
+        if (edge === 'start') sub.start = Math.min(newT, sub.end - 0.1);
+        else                   sub.end   = Math.max(newT, sub.start + 0.1);
+        if (mv.ctrlKey) {
+          const snap = calcSnap(edge === 'start' ? sub.start : sub.end);
+          snapTarget = snap;
+          if (snapEl) snapEl.remove();
+          snapEl = document.createElement('div');
+          snapEl.className = 'tl-snap-indicator';
+          snapEl.style.left = (snap / dur2 * 100) + '%';
+          tlLane.appendChild(snapEl);
+        } else { removeSnap(); snapTarget = null; }
+        const bl = tlLane.querySelector(`.tl-block[data-id="${id}"]`);
+        if (bl) { bl.style.left = (sub.start/dur2*100)+'%'; bl.style.width = Math.max(0.3,(sub.end-sub.start)/dur2*100)+'%'; }
+        const row = document.querySelector(`.sub-row[data-id="${id}"]`);
+        if (row) {
+          const inp = row.querySelector(`.t-input[data-field="${edge}"]`);
+          if (inp) inp.value = fmtDisp(edge === 'start' ? sub.start : sub.end);
+          updateDurBadge(row, sub);
+        }
+        showGhost(isShiftHeld);
+      }
+
+      function onUp() {
+        removeGhost(); removeSnap(); document.body.style.cursor = '';
+        document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp);
+        if (!moved) return;
+        if (snapTarget !== null) {
+          if (edge === 'start') sub.start = Math.min(parseFloat(snapTarget.toFixed(3)), sub.end - 0.1);
+          else                   sub.end   = Math.max(parseFloat(snapTarget.toFixed(3)), sub.start + 0.1);
+        }
+        if (edge === 'end' && subIdx < sorted.length - 1) {
+          const next = subtitles.find(s => s.id === sorted[subIdx + 1].id);
+          if (next) {
+            if (isShiftHeld) {
+              const delta = sub.end - origAll.get(id).end;
+              for (let j = subIdx + 1; j < sorted.length; j++) {
+                const ns = subtitles.find(s => s.id === sorted[j].id);
+                if (ns) { ns.start = parseFloat((ns.start + delta).toFixed(3)); ns.end = parseFloat((ns.end + delta).toFixed(3)); }
+              }
+            } else { if (next.start < sub.end) next.start = sub.end; }
+          }
+        }
+        if (edge === 'start' && subIdx > 0) {
+          const prev = subtitles.find(s => s.id === sorted[subIdx - 1].id);
+          if (prev && prev.end > sub.start) {
+            if (isShiftHeld) {
+              const delta = sub.start - origAll.get(id).start;
+              for (let j = subIdx - 1; j >= 0; j--) {
+                const ns = subtitles.find(s => s.id === sorted[j].id);
+                if (ns) { ns.start = parseFloat((ns.start + delta).toFixed(3)); ns.end = parseFloat((ns.end + delta).toFixed(3)); }
+              }
+            } else { prev.end = sub.start; }
+          }
+        }
+        renderTimeline();
+      }
+      document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
+    });
+  });
+
+  updateScrollThumb();
+}
+
+// ── IMPORT ─────────────────────────────────────────
+function processImportText(raw) {
+  const paras = raw.split(/\n\s*\n/).map(p => p.trim()).filter(p => p);
+  const n = paras.length;
+  const hasRange = inPoint !== null && outPoint !== null && outPoint > inPoint;
+  const rangeStart = inPoint !== null ? inPoint : 0;
+
+  return paras.map((p, i) => {
+    let start, end;
+    if (hasRange) {
+      const subDur = (outPoint - inPoint) / n;
+      start = parseFloat((rangeStart + i * subDur).toFixed(3));
+      end   = parseFloat((rangeStart + (i + 1) * subDur).toFixed(3));
+    } else {
+      start = parseFloat((rangeStart + i * DEFAULT_DUR).toFixed(3));
+      end   = parseFloat((rangeStart + (i + 1) * DEFAULT_DUR).toFixed(3));
+    }
+    return { id: nextId++, start, end, lines: p.split('\n').map(l => applyMarkdown(l.trim())).filter(l => l) };
+  });
+}
+
+function doImport(append) {
+  const raw = document.getElementById('importTa').value.trim(); if (!raw) return;
+  saveUndo();
+  const ns = processImportText(raw);
+  if (append) { subtitles.push(...ns); subtitles.sort((a, b) => a.start - b.start); } else subtitles = ns;
+  document.getElementById('importTa').value = '';
+  const hasRange = inPoint !== null && outPoint !== null && outPoint > inPoint;
+  const msg = hasRange
+    ? `${ns.length} subtitle${ns.length>1?'s':''} ${append?'appended':'imported'} across ${fmtDisp(inPoint)}–${fmtDisp(outPoint)}`
+    : `${ns.length} subtitle${ns.length>1?'s':''} ${append?'appended':'imported'} — use ⏱ Cue to time them`;
+  refreshAll(); showToast(msg); switchTab('list');
+}
+document.getElementById('importReplaceBtn').onclick = () => doImport(false);
+document.getElementById('importAppendBtn').onclick  = () => doImport(true);
+
+document.getElementById('importTa').addEventListener('paste', e => {
+  e.preventDefault();
+  const html = e.clipboardData.getData('text/html'), plain = e.clipboardData.getData('text/plain');
+  let result = '';
+  if (html && html.includes('</p>')) {
+    const tmp = document.createElement('div'); tmp.innerHTML = html;
+    tmp.querySelectorAll('br').forEach(br => br.replaceWith('↵'));
+    const blocks = [];
+    tmp.querySelectorAll('p, li, h1, h2, h3, h4, h5, h6').forEach(el => { const text = el.innerText || el.textContent; if (text.trim()) blocks.push(text.trim()); });
+    result = blocks.length ? blocks.map(b => b.replace(/↵/g, '\n')).join('\n\n') : (tmp.innerText || tmp.textContent);
+  } else { result = plain; }
+  const ta = e.target;
+  const start = ta.selectionStart, end = ta.selectionEnd;
+  ta.setRangeText(result, start, end, 'end');
+});
+
+const importFileZone = document.getElementById('importFileZone'), importFileInput = document.getElementById('importFileInput');
+importFileZone.addEventListener('click', () => importFileInput.click());
+importFileZone.addEventListener('dragover', e => { e.preventDefault(); importFileZone.style.borderColor = 'var(--accent)'; });
+importFileZone.addEventListener('dragleave', () => { importFileZone.style.borderColor = ''; });
+importFileZone.addEventListener('drop', e => { e.preventDefault(); importFileZone.style.borderColor = ''; const f = e.dataTransfer.files[0]; if (f) readSubFile(f); });
+importFileInput.addEventListener('change', e => { const f = e.target.files[0]; if (f) readSubFile(f); });
+
+function readSubFile(f) {
+  const r = new FileReader();
+  r.onload = ev => {
+    const text = ev.target.result, ext = f.name.split('.').pop().toLowerCase();
+    let parsed = ext === 'srt' ? parseSRT(text) : ext === 'vtt' ? parseVTT(text) : [];
+    if (!parsed.length) return showToast('Could not parse file');
+    saveUndo(); subtitles = parsed; nextId = Math.max(...parsed.map(s => s.id)) + 1;
+    refreshAll(); showToast(parsed.length + ' subtitles imported'); switchTab('list');
+  };
+  r.readAsText(f); importFileInput.value = '';
+}
+
+function parseSRT(text) {
+  return text.trim().split(/\n\s*\n/).map(block => {
+    const lines = block.trim().split('\n'); if (lines.length < 3) return null;
+    const m = lines[1].match(/(\d+:\d+:\d+[,\.]\d+)\s*-->\s*(\d+:\d+:\d+[,\.]\d+)/);
+    if (!m) return null;
+    return { id: nextId++, start: parseTime(m[1]), end: parseTime(m[2]), lines: lines.slice(2) };
+  }).filter(Boolean);
+}
+function parseVTT(text) {
+  const lines = text.split('\n'), result = []; let i = 0;
+  while (i < lines.length) {
+    const m = lines[i].match(/(\d+:\d+[\.:]\d+[\.:]\d+|\d+:\d+[\.:]\d+)\s*-->\s*(\d+:\d+[\.:]\d+[\.:]\d+|\d+:\d+[\.:]\d+)/);
+    if (m) {
+      const tl = []; i++;
+      while (i < lines.length && lines[i].trim()) { tl.push(lines[i]); i++; }
+      if (tl.length) result.push({ id: nextId++, start: parseTime(m[1]), end: parseTime(m[2]), lines: tl });
+    } else i++;
+  }
+  return result;
+}
+
+// ── PROJECT BIN ────────────────────────────────────
+const projects = [];
+let activeProjectId = null;
+
+function saveCurrentProject() {
+  if (activeProjectId === null) return;
+  const cur = projects.find(p => p.id === activeProjectId); if (!cur) return;
+  cur.subtitles = JSON.parse(JSON.stringify(subtitles)); cur.nextId = nextId;
+  if (video.src && video.src.startsWith('blob:')) cur.videoBlobUrl = video.src;
+}
+
+function renderBin() {
+  const binList = document.getElementById('binList'), binEmpty = document.getElementById('binEmpty');
+  if (!binList) return;
+  binEmpty.style.display = projects.length ? 'none' : '';
+  binList.querySelectorAll('.bin-item').forEach(el => el.remove());
+  projects.forEach(p => {
+    const el = document.createElement('div');
+    el.className = 'bin-item' + (p.id === activeProjectId ? ' active' : '');
+    el.dataset.id = p.id;
+    el.innerHTML = `<div class="bin-item-name">${p.name}</div><div class="bin-item-count">${p.videoBlobUrl ? '🎬 ' + (p.videoName || 'video') : '📂 no video'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div>`;
+    el.addEventListener('click', () => switchProject(p.id));
+    el.addEventListener('dblclick', e => { e.stopPropagation(); const name = prompt('Rename project:', p.name); if (name && name.trim()) { p.name = name.trim(); renderBin(); } });
+    binList.appendChild(el);
+  });
+}
+
+function switchProject(id) {
+  saveCurrentProject(); activeProjectId = id;
+  const proj = projects.find(p => p.id === id); if (!proj) return;
+  subtitles = JSON.parse(JSON.stringify(proj.subtitles)); nextId = proj.nextId;
+  selectedId = null; selectedIds = new Set();
+  if (proj.videoBlobUrl) { video.src = proj.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
+  else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
+  renderBin(); refreshAll(); showToast('Switched to: ' + proj.name);
+}
+
+document.getElementById('binAddBtn').addEventListener('click', () => {
+  saveCurrentProject();
+  const name = prompt('Project name:', 'Project ' + (projects.length + 1)); if (!name) return;
+  const newProj = { id: Date.now(), name: name.trim(), videoName: '', videoBlobUrl: '', subtitles: [], nextId: 1 };
+  projects.push(newProj); activeProjectId = newProj.id;
+  subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
+  video.src = ''; video.style.display = 'none';
+  document.getElementById('videoPlaceholder').style.display = '';
+  renderBin(); refreshAll(); showToast('New project "' + newProj.name + '" — open a video to begin');
+});
+
+const cueBtnImport = document.getElementById('cueBtnImport');
+if (cueBtnImport) cueBtnImport.onclick = () => { switchTab('list'); setTimeout(() => { cueMode ? exitCueMode(false) : enterCueMode(); }, 50); };
+
+renderBin();
+
+// ── TABS ───────────────────────────────────────────
+function switchTab(name) {
+  document.querySelectorAll('[data-tab]').forEach(b => b.classList.toggle('active-tab', b.dataset.tab === name));
+  document.getElementById('listWrap').classList.toggle('visible', name === 'list');
+  document.getElementById('importPanel').classList.toggle('visible', name === 'import');
+}
+document.querySelectorAll('[data-tab]').forEach(b => b.onclick = () => switchTab(b.dataset.tab));
+
+// ── EXPORT ─────────────────────────────────────────
+function dl(c, n, t) { const a = document.createElement('a'); a.href = URL.createObjectURL(new Blob([c], { type: t })); a.download = n; a.click(); }
+document.getElementById('exportSrtBtn').onclick = () => {
+  const name = (document.getElementById('filenameInput').value.trim() || 'subtitles').replace(/\.srt$/i, '');
+  const s = [...subtitles].sort((a, b) => a.start - b.start);
+  dl(s.map((s, i) => `${i+1}\n${fmtSRT(s.start)} --> ${fmtSRT(s.end)}\n${s.lines.join('\n')}`).join('\n\n'), name + '.srt', 'text/plain');
+};
+document.getElementById('exportVttBtn').onclick = () => {
+  const name = (document.getElementById('filenameInput').value.trim() || 'subtitles').replace(/\.vtt$/i, '');
+  const s = [...subtitles].sort((a, b) => a.start - b.start);
+  dl(['WEBVTT', '', ...s.map(s => `${fmtVTT(s.start)} --> ${fmtVTT(s.end)}\n${s.lines.join('\n')}`)].join('\n\n'), name + '.vtt', 'text/vtt');
+};
+
+// ── HELPERS ────────────────────────────────────────
+function pad(n) { return String(Math.floor(n)).padStart(2, '0'); }
+function padMs(n) { return String(n).padStart(3, '0'); }
+function fmtFull(s) { if (!s || isNaN(s)) return '0:00:00.00'; const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=s%60; return `${pad(h)}:${pad(m)}:${sec.toFixed(2).padStart(5,'0')}`; }
+function fmtDisp(s) { if (!s && s!==0) return '0:00.000'; const m=Math.floor(s/60),sec=s%60; return `${m}:${sec.toFixed(3).padStart(6,'0')}`; }
+function fmtSRT(s) { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60),ms=Math.round((s%1)*1000); return `${pad(h)}:${pad(m)}:${pad(sec)},${padMs(ms)}`; }
+function fmtVTT(s) { const h=Math.floor(s/3600),m=Math.floor((s%3600)/60),sec=Math.floor(s%60),ms=Math.round((s%1)*1000); return `${pad(h)}:${pad(m)}:${pad(sec)}.${padMs(ms)}`; }
+function parseTime(str) {
+  str = (str||'').trim().replace(',','.');
+  const p = str.split(':');
+  try { if (p.length===3) return +p[0]*3600 + +p[1]*60 + parseFloat(p[2]); if (p.length===2) return +p[0]*60 + parseFloat(p[1]); return parseFloat(str)||0; } catch { return 0; }
+}
+function esc(s) { return (s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;'); }
+function renderLine(s) {
+  if (!s) return '';
+  const parts = [], re = /<(b|strong|i|em)>([\s\S]*?)<\/\1>/gi;
+  let last = 0, m;
+  while ((m = re.exec(s)) !== null) {
+    parts.push(esc(s.slice(last, m.index)));
+    const tag = /b|strong/i.test(m[1]) ? 'b' : 'i';
+    parts.push(`<${tag}>${esc(m[2])}</${tag}>`);
+    last = m.index + m[0].length;
+  }
+  parts.push(esc(s.slice(last)));
+  return parts.join('');
+}
+function safeHtml(s) { return renderLine(s); }
+
+let toastTimer;
+function showToast(msg, cls='') {
+  const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show ' + cls;
+  clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = 'toast', 2200);
+}
+function refreshAll() { renderList(); renderTimeline(); }
+refreshAll();
+</script>
+</body>
+</html>
