@@ -1,0 +1,6 @@
+{
+  "rewrites": [
+    { "source": "/", "destination": "/subtitle-editor.html" },
+    { "source": "/(.*)", "destination": "/subtitle-editor.html" }
+  ]
+}
