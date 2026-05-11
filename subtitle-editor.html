@@ -1676,15 +1676,15 @@ document.getElementById('authSubmitBtn').addEventListener('click', async () => {
   const password = document.getElementById('authPassword').value;
   const errEl = document.getElementById('authError');
   errEl.style.display = 'none';
-  if (!email || !password) { errEl.textContent = 'Email and password are required.'; errEl.style.display = ''; return; }
+  if (!email || !password) { errEl.textContent = 'Email and password are required.'; errEl.style.display = 'block'; return; }
   const btn = document.getElementById('authSubmitBtn');
   btn.disabled = true; btn.textContent = '…';
   const { error } = _authMode === 'signin'
     ? await sb.auth.signInWithPassword({ email, password })
     : await sb.auth.signUp({ email, password });
   btn.disabled = false; btn.textContent = _authMode === 'signin' ? 'Sign in' : 'Create account';
-  if (error) { errEl.textContent = error.message; errEl.style.display = ''; }
-  else if (_authMode === 'signup') { errEl.style.display = ''; errEl.style.color = 'var(--green)'; errEl.textContent = 'Check your email to confirm your account.'; }
+  if (error) { errEl.textContent = error.message; errEl.style.color = ''; errEl.style.display = 'block'; }
+  else if (_authMode === 'signup') { errEl.style.display = 'block'; errEl.style.color = 'var(--green)'; errEl.textContent = 'Check your email to confirm your account.'; }
 });
 
 document.getElementById('authOfflineBtn').addEventListener('click', () => {
