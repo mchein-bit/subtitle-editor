@@ -360,6 +360,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
         <div class="sub-list-right">
           <div style="padding:6px 12px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:1">Shortcuts</div>
           <div class="sc-row"><span class="sc-desc">Play / Pause</span><span class="sc-keys"><kbd>Space</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Close editor &amp; play</span><span class="sc-keys"><kbd>F9</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Click video</span><span class="sc-keys"><kbd>Click</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Mark subtitle</span><span class="sc-keys"><kbd>M</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Seek ±1s</span><span class="sc-keys"><kbd>←</kbd><kbd>→</kbd></span></div>
@@ -1082,6 +1083,12 @@ function renderList() {
       saveEditorContent();
     });
     ed.addEventListener('keydown', e => {
+      if (e.key === 'F9') {
+        e.preventDefault();
+        ed.blur();
+        video.play();
+        return;
+      }
       if (e.key === 'Enter' && e.ctrlKey) {
         e.preventDefault();
         try {
