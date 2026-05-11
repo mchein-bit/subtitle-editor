@@ -222,7 +222,17 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
 .toast{position:fixed;bottom:20px;left:50%;transform:translateX(-50%) translateY(10px);background:var(--panel3);border:1px solid var(--border2);color:var(--text);font-family:var(--mono);font-size:11px;padding:7px 16px;border-radius:20px;opacity:0;pointer-events:none;z-index:999;transition:all .2s;white-space:nowrap}
 .toast.show{opacity:1;transform:translateX(-50%) translateY(0)}
 .toast.yellow{border-color:var(--yellow);color:var(--yellow)}
+/* ── AUTH ── */
+#authOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:2000;align-items:center;justify-content:center}
+#authOverlay.visible{display:flex}
+.auth-modal{background:var(--panel);border:1px solid var(--border2);border-radius:8px;padding:32px;width:340px;display:flex;flex-direction:column;gap:14px}
+.auth-input{font-family:var(--ui);font-size:13px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);padding:8px 10px;outline:none;transition:border-color .15s;width:100%}
+.auth-input:focus{border-color:var(--accent)}
+.auth-error{display:none;font-size:12px;color:var(--red);background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.4);border-radius:var(--r);padding:8px 10px}
+.auth-link{background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;text-align:center;padding:0}
+.auth-offline{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-align:center;padding:0}
 </style>
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
 <body>
 
@@ -237,7 +247,12 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
   <div class="menu-sep"></div>
   <button class="menu-btn ghost" id="exportSrtBtn">↓ SRT</button>
   <button class="menu-btn ghost" id="exportVttBtn">↓ VTT</button>
-  <div class="menubar-right"></div>
+  <div class="menubar-right">
+    <span id="saveStatus" style="display:none;font-family:var(--mono);font-size:11px"></span>
+    <div class="menu-sep" id="authSep" style="display:none"></div>
+    <span id="userEmail" style="display:none;font-family:var(--mono);font-size:11px;color:var(--text2)"></span>
+    <button class="menu-btn ghost" id="signOutBtn" style="display:none">Sign out</button>
+  </div>
 </div>
 
 <div class="workspace">
@@ -409,9 +424,29 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
     </div>
   </div>
 </div>
+<!-- ── AUTH MODAL ── -->
+<div id="authOverlay">
+  <div class="auth-modal">
+    <div style="font-family:var(--mono);font-size:16px;font-weight:700;color:var(--accent)">SubEdit</div>
+    <div id="authTitle" style="font-size:14px;font-weight:600;color:var(--text)">Sign in</div>
+    <div id="authError" class="auth-error"></div>
+    <input id="authEmail" class="auth-input" type="email" placeholder="Email" autocomplete="email">
+    <input id="authPassword" class="auth-input" type="password" placeholder="Password" autocomplete="current-password">
+    <button id="authSubmitBtn" class="menu-btn primary" style="width:100%;justify-content:center">Sign in</button>
+    <button id="authToggleBtn" class="auth-link">Need an account? Sign up</button>
+    <button id="authOfflineBtn" class="auth-offline">Continue without account (local only)</button>
+  </div>
+</div>
+
 <div class="toast" id="toast"></div>
 
 <script>
+// ── SUPABASE ───────────────────────────────────────
+const SUPABASE_URL      = 'https://YOUR_PROJECT_ID.supabase.co';
+const SUPABASE_ANON_KEY = 'YOUR_ANON_KEY';
+const sb = supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+let currentUser = null;
+
 const DEFAULT_DUR = 10;
 let subtitles = [], selectedId = null, nextId = 1;
 let selectedIds = new Set();
@@ -480,7 +515,7 @@ function loadFile(f) {
     const cur = projects.find(p => p.id === activeProjectId);
     if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; }
   }
-  renderBin();
+  renderBin(); triggerSave();
 }
 const videoArea = document.getElementById('videoArea');
 videoArea.addEventListener('dragover', e => e.preventDefault());
@@ -751,7 +786,7 @@ function doMark() {
     markBtn.classList.add('mark-flash');
     setTimeout(() => markBtn.classList.remove('mark-flash'), 350);
     if (cueIndex >= cueOrderFixed.length) exitCueMode(true); else updateCueBanner();
-    return;
+    triggerSave(); return;
   }
   // normal mark
   const sorted = [...subtitles].sort((a, b) => a.start - b.start);
@@ -762,13 +797,13 @@ function doMark() {
       if (sub.end <= t) sub.end = parseFloat((t + DEFAULT_DUR).toFixed(3));
       const idx = sorted.findIndex(s => s.id === selectedId);
       if (idx < sorted.length - 1) selectedId = sorted[idx + 1].id;
-      refreshAll(); showToast('IN → ' + fmtDisp(t), 'yellow');
+      refreshAll(); showToast('IN → ' + fmtDisp(t), 'yellow'); triggerSave();
     }
   } else {
     saveUndo();
     const ns = { id: nextId++, start: t, end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
     subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start); selectedId = ns.id;
-    refreshAll(); showToast('Added at ' + fmtDisp(t), 'yellow');
+    refreshAll(); showToast('Added at ' + fmtDisp(t), 'yellow'); triggerSave();
   }
   markBtn.classList.add('mark-flash');
   setTimeout(() => markBtn.classList.remove('mark-flash'), 350);
@@ -899,12 +934,12 @@ function addSub(t) {
   saveUndo(); t = t !== undefined ? t : (video.currentTime || 0);
   const ns = { id: nextId++, start: parseFloat(t.toFixed(3)), end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
   subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start); selectedId = ns.id;
-  refreshAll();
+  refreshAll(); triggerSave();
 }
 function deleteSub(id) {
   saveUndo(); const idx = subtitles.findIndex(s => s.id === id); subtitles.splice(idx, 1);
   selectedId = subtitles[Math.min(idx, subtitles.length - 1)]?.id ?? null;
-  selectedIds.delete(id); refreshAll(); showToast('Deleted');
+  selectedIds.delete(id); refreshAll(); showToast('Deleted'); triggerSave();
 }
 function mergeSub(id) {
   const sorted = [...subtitles].sort((a, b) => a.start - b.start), idx = sorted.findIndex(s => s.id === id);
@@ -913,7 +948,7 @@ function mergeSub(id) {
   const a = subtitles.find(s => s.id === sorted[idx].id), b = subtitles.find(s => s.id === sorted[idx + 1].id);
   a.lines = [...a.lines, ...b.lines]; a.end = b.end;
   subtitles.splice(subtitles.indexOf(b), 1); selectedId = a.id;
-  refreshAll(); showToast('Merged');
+  refreshAll(); showToast('Merged'); triggerSave();
 }
 function splitSub(id, cursor) {
   const sub = subtitles.find(s => s.id === id); if (!sub) return;
@@ -927,7 +962,7 @@ function splitSub(id, cursor) {
   const dur = sub.end - sub.start;
   const ns = { id: nextId++, start: parseFloat(mid.toFixed(3)), end: parseFloat((mid + dur).toFixed(3)), lines: after.split('\n') };
   subtitles.splice(subtitles.indexOf(sub) + 1, 0, ns); selectedId = ns.id;
-  refreshAll(); showToast('Split');
+  refreshAll(); showToast('Split'); triggerSave();
 }
 document.getElementById('addSubBtn').onclick = () => addSub(video.currentTime || 0);
 
@@ -1036,6 +1071,7 @@ function renderList() {
       const bl = document.querySelector(`.tl-block[data-id="${sub.id}"] span`);
       if (bl) bl.innerHTML = safeHtml(s.lines[0] || '');
       updateOverlay(video.currentTime);
+      triggerSave();
     }
 
     ed.addEventListener('focus', () => selectSub(sub.id));
@@ -1106,7 +1142,7 @@ function renderList() {
         s[field] = parseFloat(Math.max(0, s[field] + delta).toFixed(3));
         const inp = row.querySelector(`.t-input[data-field="${field}"]`);
         if (inp) inp.value = fmtDisp(s[field]);
-        updateDurBadge(row, s); refreshTimeline();
+        updateDurBadge(row, s); refreshTimeline(); triggerSave();
       });
     });
     row.querySelectorAll('.set-btn').forEach(btn => {
@@ -1117,7 +1153,7 @@ function renderList() {
         const inp = row.querySelector(`.t-input[data-field="${field}"]`);
         if (inp) inp.value = fmtDisp(s[field]);
         updateDurBadge(row, s); refreshTimeline();
-        showToast(field === 'start' ? 'IN set' : 'OUT set');
+        showToast(field === 'start' ? 'IN set' : 'OUT set'); triggerSave();
       });
     });
     row.addEventListener('click', e => {
@@ -1369,7 +1405,7 @@ function renderTimeline() {
               });
             });
           }
-          refreshAll();
+          refreshAll(); triggerSave();
         }
         document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
       });
@@ -1499,7 +1535,7 @@ function renderTimeline() {
             } else { prev.end = sub.start; }
           }
         }
-        renderTimeline();
+        renderTimeline(); triggerSave();
       }
       document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
     });
@@ -1539,7 +1575,7 @@ function doImport(append) {
   const msg = hasRange
     ? `${ns.length} subtitle${ns.length>1?'s':''} ${append?'appended':'imported'} across ${fmtDisp(inPoint)}–${fmtDisp(outPoint)}`
     : `${ns.length} subtitle${ns.length>1?'s':''} ${append?'appended':'imported'} — use ⏱ Cue to time them`;
-  refreshAll(); showToast(msg); switchTab('list');
+  refreshAll(); showToast(msg); switchTab('list'); triggerSave();
 }
 document.getElementById('importReplaceBtn').onclick = () => doImport(false);
 document.getElementById('importAppendBtn').onclick  = () => doImport(true);
@@ -1574,7 +1610,7 @@ function readSubFile(f) {
     let parsed = ext === 'srt' ? parseSRT(text) : ext === 'vtt' ? parseVTT(text) : [];
     if (!parsed.length) return showToast('Could not parse file');
     saveUndo(); subtitles = parsed; nextId = Math.max(...parsed.map(s => s.id)) + 1;
-    refreshAll(); showToast(parsed.length + ' subtitles imported'); switchTab('list');
+    refreshAll(); showToast(parsed.length + ' subtitles imported'); switchTab('list'); triggerSave();
   };
   r.readAsText(f); importFileInput.value = '';
 }
@@ -1600,6 +1636,154 @@ function parseVTT(text) {
   return result;
 }
 
+// ── AUTH ───────────────────────────────────────────
+function showAuthModal() { document.getElementById('authOverlay').classList.add('visible'); }
+function hideAuthModal() { document.getElementById('authOverlay').classList.remove('visible'); }
+
+function updateUserDisplay() {
+  const emailEl = document.getElementById('userEmail');
+  const soBtn   = document.getElementById('signOutBtn');
+  const sep     = document.getElementById('authSep');
+  if (currentUser) {
+    emailEl.textContent = currentUser.email; emailEl.style.display = '';
+    soBtn.style.display = ''; sep.style.display = '';
+  } else {
+    emailEl.style.display = 'none'; soBtn.style.display = 'none'; sep.style.display = 'none';
+  }
+}
+
+function setSaveStatus(state) {
+  const el = document.getElementById('saveStatus');
+  if (!currentUser) { el.style.display = 'none'; return; }
+  const map = { saving: ['Saving…','var(--text3)'], saved: ['Saved ✓','var(--green)'], unsaved: ['Unsaved','var(--yellow)'] };
+  if (state === 'hidden') { el.style.display = 'none'; return; }
+  const [txt, col] = map[state] || ['',''];
+  el.textContent = txt; el.style.color = col; el.style.display = '';
+}
+
+let _authMode = 'signin';
+document.getElementById('authToggleBtn').addEventListener('click', () => {
+  _authMode = _authMode === 'signin' ? 'signup' : 'signin';
+  const isSignin = _authMode === 'signin';
+  document.getElementById('authTitle').textContent      = isSignin ? 'Sign in' : 'Create account';
+  document.getElementById('authSubmitBtn').textContent  = isSignin ? 'Sign in' : 'Create account';
+  document.getElementById('authToggleBtn').textContent  = isSignin ? 'Need an account? Sign up' : 'Already have an account? Sign in';
+  document.getElementById('authError').style.display    = 'none';
+});
+
+document.getElementById('authSubmitBtn').addEventListener('click', async () => {
+  const email = document.getElementById('authEmail').value.trim();
+  const password = document.getElementById('authPassword').value;
+  const errEl = document.getElementById('authError');
+  errEl.style.display = 'none';
+  if (!email || !password) { errEl.textContent = 'Email and password are required.'; errEl.style.display = ''; return; }
+  const btn = document.getElementById('authSubmitBtn');
+  btn.disabled = true; btn.textContent = '…';
+  const { error } = _authMode === 'signin'
+    ? await sb.auth.signInWithPassword({ email, password })
+    : await sb.auth.signUp({ email, password });
+  btn.disabled = false; btn.textContent = _authMode === 'signin' ? 'Sign in' : 'Create account';
+  if (error) { errEl.textContent = error.message; errEl.style.display = ''; }
+  else if (_authMode === 'signup') { errEl.style.display = ''; errEl.style.color = 'var(--green)'; errEl.textContent = 'Check your email to confirm your account.'; }
+});
+
+document.getElementById('authOfflineBtn').addEventListener('click', () => {
+  hideAuthModal(); showToast('Running in local-only mode');
+});
+
+document.getElementById('signOutBtn').addEventListener('click', async () => {
+  saveCurrentProject();
+  await sb.auth.signOut();
+  currentUser = null; updateUserDisplay(); setSaveStatus('hidden');
+  projects.length = 0; activeProjectId = null;
+  subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
+  video.src = ''; video.style.display = 'none';
+  document.getElementById('videoPlaceholder').style.display = '';
+  renderBin(); refreshAll(); showAuthModal();
+});
+
+async function onLogin(user) {
+  currentUser = user; updateUserDisplay(); await loadFromSupabase();
+}
+
+async function initAuth() {
+  const { data: { session } } = await sb.auth.getSession();
+  if (session?.user) { await onLogin(session.user); } else { showAuthModal(); }
+  sb.auth.onAuthStateChange(async (_event, session) => {
+    if (session?.user && !currentUser) { hideAuthModal(); await onLogin(session.user); }
+    else if (!session?.user && currentUser) { currentUser = null; updateUserDisplay(); setSaveStatus('hidden'); showAuthModal(); }
+  });
+}
+
+// ── CLOUD LOAD ─────────────────────────────────────
+async function loadFromSupabase() {
+  if (!currentUser) return;
+  const { data: rProjects, error: pErr } = await sb.from('projects').select('*').eq('user_id', currentUser.id).order('created_at', { ascending: true });
+  if (pErr) { showToast('Cloud load failed: ' + pErr.message); return; }
+  if (!rProjects.length) { renderBin(); showToast('Signed in — no projects yet'); return; }
+  const uuids = rProjects.map(p => p.id);
+  const { data: rSubs, error: sErr } = await sb.from('subtitles').select('*').in('project_id', uuids).order('position', { ascending: true });
+  if (sErr) { showToast('Could not load subtitles: ' + sErr.message); return; }
+  projects.length = 0;
+  rProjects.forEach(rp => {
+    const subs = rSubs.filter(rs => rs.project_id === rp.id).map((rs, i) => ({
+      id: i + 1, supabaseId: rs.id,
+      start: parseFloat(rs.start_time), end: parseFloat(rs.end_time), lines: rs.lines || [''],
+    }));
+    projects.push({ id: Date.now() + Math.random(), supabaseId: rp.id, name: rp.name, videoName: rp.video_name || '', videoBlobUrl: '', subtitles: subs, nextId: subs.length + 1 });
+  });
+  activeProjectId = projects[0].id;
+  subtitles = JSON.parse(JSON.stringify(projects[0].subtitles)); nextId = projects[0].nextId;
+  selectedId = null; selectedIds = new Set();
+  renderBin(); refreshAll(); showToast('Loaded ' + projects.length + ' project(s) from cloud');
+}
+
+// ── CLOUD SAVE (debounced) ─────────────────────────
+let _saveTimer = null;
+function triggerSave() {
+  if (!currentUser) return;
+  setSaveStatus('unsaved'); clearTimeout(_saveTimer);
+  _saveTimer = setTimeout(saveToSupabase, 1500);
+}
+
+async function saveToSupabase() {
+  if (!currentUser || activeProjectId === null) return;
+  saveCurrentProject();
+  const proj = projects.find(p => p.id === activeProjectId); if (!proj) return;
+  setSaveStatus('saving');
+
+  // Upsert project row
+  const projPayload = { user_id: currentUser.id, name: proj.name, video_name: proj.videoName || '', updated_at: new Date().toISOString() };
+  if (proj.supabaseId) projPayload.id = proj.supabaseId;
+  const { data: savedProj, error: pErr } = await sb.from('projects').upsert(projPayload, { onConflict: 'id' }).select().single();
+  if (pErr) { setSaveStatus('unsaved'); showToast('Save failed: ' + pErr.message); return; }
+  if (!proj.supabaseId) proj.supabaseId = savedProj.id;
+
+  // Upsert subtitles
+  if (proj.subtitles.length) {
+    const subPayloads = proj.subtitles.map((s, i) => {
+      const p = { project_id: proj.supabaseId, position: i, start_time: s.start, end_time: s.end, lines: s.lines, updated_at: new Date().toISOString() };
+      if (s.supabaseId) p.id = s.supabaseId;
+      return p;
+    });
+    const { error: sErr } = await sb.from('subtitles').upsert(subPayloads, { onConflict: 'id' });
+    if (sErr) { setSaveStatus('unsaved'); showToast('Subtitle save failed: ' + sErr.message); return; }
+    // Patch back any new UUIDs
+    const { data: freshSubs } = await sb.from('subtitles').select('id,position').eq('project_id', proj.supabaseId).order('position');
+    if (freshSubs) freshSubs.forEach(fs => { const loc = proj.subtitles[fs.position]; if (loc && !loc.supabaseId) loc.supabaseId = fs.id; });
+  }
+
+  // Delete removed subtitles
+  const knownUuids = proj.subtitles.map(s => s.supabaseId).filter(Boolean);
+  if (knownUuids.length) {
+    await sb.from('subtitles').delete().eq('project_id', proj.supabaseId).not('id', 'in', `(${knownUuids.join(',')})`);
+  } else {
+    await sb.from('subtitles').delete().eq('project_id', proj.supabaseId);
+  }
+
+  setSaveStatus('saved'); setTimeout(() => setSaveStatus('hidden'), 3000);
+}
+
 // ── PROJECT BIN ────────────────────────────────────
 const projects = [];
 let activeProjectId = null;
@@ -1622,10 +1806,11 @@ function renderBin() {
     el.dataset.id = p.id;
     el.innerHTML = `<div class="bin-item-name">${p.name}</div><div class="bin-item-count">${p.videoBlobUrl ? '🎬 ' + (p.videoName || 'video') : '📂 no video'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div><button class="bin-delete-btn" title="Delete project">×</button>`;
     el.addEventListener('click', () => switchProject(p.id));
-    el.addEventListener('dblclick', e => { e.stopPropagation(); const name = prompt('Rename project:', p.name); if (name && name.trim()) { p.name = name.trim(); renderBin(); } });
-    el.querySelector('.bin-delete-btn').addEventListener('click', e => {
+    el.addEventListener('dblclick', e => { e.stopPropagation(); const name = prompt('Rename project:', p.name); if (name && name.trim()) { p.name = name.trim(); renderBin(); triggerSave(); } });
+    el.querySelector('.bin-delete-btn').addEventListener('click', async e => {
       e.stopPropagation();
       if (!confirm(`Delete project "${p.name}"?\nThis cannot be undone.`)) return;
+      const supabaseId = p.supabaseId;
       const idx = projects.findIndex(pr => pr.id === p.id);
       if (idx > -1) projects.splice(idx, 1);
       if (activeProjectId === p.id) {
@@ -1644,6 +1829,10 @@ function renderBin() {
         }
       }
       renderBin(); refreshAll(); showToast(`"${p.name}" deleted`);
+      if (currentUser && supabaseId) {
+        const { error } = await sb.from('projects').delete().eq('id', supabaseId);
+        if (error) showToast('Cloud delete failed: ' + error.message);
+      }
     });
     binList.appendChild(el);
   });
@@ -1659,15 +1848,20 @@ function switchProject(id) {
   renderBin(); refreshAll(); showToast('Switched to: ' + proj.name);
 }
 
-document.getElementById('binAddBtn').addEventListener('click', () => {
+document.getElementById('binAddBtn').addEventListener('click', async () => {
   saveCurrentProject();
   const name = prompt('Project name:', 'Project ' + (projects.length + 1)); if (!name) return;
-  const newProj = { id: Date.now(), name: name.trim(), videoName: '', videoBlobUrl: '', subtitles: [], nextId: 1 };
+  const newProj = { id: Date.now(), supabaseId: null, name: name.trim(), videoName: '', videoBlobUrl: '', subtitles: [], nextId: 1 };
   projects.push(newProj); activeProjectId = newProj.id;
   subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
   video.src = ''; video.style.display = 'none';
   document.getElementById('videoPlaceholder').style.display = '';
   renderBin(); refreshAll(); showToast('New project "' + newProj.name + '" — open a video to begin');
+  if (currentUser) {
+    const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name: newProj.name, video_name: '' }).select().single();
+    if (error) showToast('Cloud save failed: ' + error.message);
+    else newProj.supabaseId = data.id;
+  }
 });
 
 const cueBtnImport = document.getElementById('cueBtnImport');
@@ -1731,6 +1925,7 @@ function showToast(msg, cls='') {
 }
 function refreshAll() { renderList(); renderTimeline(); }
 refreshAll();
+initAuth();
 </script>
 </body>
 </html>
