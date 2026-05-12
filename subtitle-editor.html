@@ -231,6 +231,17 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
 .auth-error{display:none;font-size:12px;color:var(--red);background:rgba(224,82,82,.1);border:1px solid rgba(224,82,82,.4);border-radius:var(--r);padding:8px 10px}
 .auth-link{background:none;border:none;color:var(--accent);font-size:12px;cursor:pointer;text-align:center;padding:0}
 .auth-offline{background:none;border:none;color:var(--text3);font-size:11px;cursor:pointer;text-align:center;padding:0}
+/* ── LIVE MODE ── */
+.live-btn{font-family:var(--mono);font-size:11px;padding:5px 10px;border-radius:var(--r);border:1px solid var(--red);background:rgba(224,82,82,.08);color:var(--red);cursor:pointer;transition:all .15s;white-space:nowrap}
+.live-btn:hover{background:rgba(224,82,82,.2)}
+.live-btn.live-active{background:var(--red);color:#fff;font-weight:700}
+#liveBanner{position:absolute;top:0;left:0;right:0;z-index:31;background:rgba(200,40,40,.95);color:#fff;font-family:var(--mono);font-size:12px;font-weight:600;padding:7px 14px;display:none;align-items:center;gap:10px}
+#liveBanner.active{display:flex}
+#liveInputWrap{position:absolute;bottom:22%;left:50%;transform:translateX(-50%);z-index:40;background:rgba(10,10,15,.92);border:1px solid rgba(224,82,82,.55);border-radius:6px;padding:10px 14px 8px;min-width:280px;max-width:82%;display:none;flex-direction:column;gap:6px;box-shadow:0 4px 24px rgba(0,0,0,.6)}
+#liveInputWrap.visible{display:flex}
+#liveCountdownBadge{font-family:var(--mono);font-size:10px;color:rgba(255,110,110,.9);min-height:14px;text-align:right;letter-spacing:.3px}
+#liveTextArea{background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.18);color:#fff;font-family:var(--ui);font-size:14px;resize:none;outline:none;width:100%;min-height:44px;line-height:1.5;padding-bottom:4px}
+#liveTextArea::placeholder{color:rgba(255,255,255,.3)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -285,6 +296,16 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
         <span style="font-family:var(--mono);font-size:11px;opacity:.7">Press <strong>M</strong> to mark</span>
         <button class="cue-banner-exit" id="cueBannerExit">✕ Exit</button>
       </div>
+      <div id="liveBanner">
+        <span style="background:rgba(255,255,255,.15);border-radius:3px;padding:1px 8px;font-size:11px;flex-shrink:0">⏺ LIVE</span>
+        <span style="flex:1;font-size:12px;font-weight:400">Press <strong>N</strong> to capture subtitle · <strong>Enter</strong> to close · <strong>Esc</strong> to exit</span>
+        <button class="cue-banner-exit" id="liveBannerExit">✕ Exit</button>
+      </div>
+      <div id="liveInputWrap">
+        <div id="liveCountdownBadge"></div>
+        <textarea id="liveTextArea" placeholder="Type subtitle text…" rows="2" spellcheck="true"></textarea>
+        <div style="font-size:10px;color:rgba(255,255,255,.3);font-family:var(--mono)">Shift+Enter = line break · Enter = close · N = next</div>
+      </div>
     </div>
   </div>
 
@@ -301,6 +322,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
       </select>
       <div class="menu-sep"></div>
       <button class="cue-btn" id="cueBtn">⏱ Cue</button>
+      <button class="live-btn" id="liveBtn">⏺ Live</button>
       <div class="menu-sep"></div>
       <button class="mode-btn" id="modeBtn">✂ Cut</button>
       <div class="menu-sep"></div>
@@ -314,6 +336,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
     <!-- TIMELINE -->
     <div class="sub-timeline" id="subTimeline">
       <div class="tl-inner" id="tlInner">
+        <canvas id="waveformCanvas" style="position:absolute;top:16px;left:0;width:100%;height:36px;pointer-events:none;opacity:0.2;z-index:0"></canvas>
         <div class="tl-lane" id="tlLane"></div>
         <div class="tl-playhead" id="tlPlayhead" style="left:0"></div>
       </div>
@@ -361,6 +384,8 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
           <div style="padding:6px 12px 4px;font-size:10px;font-weight:600;text-transform:uppercase;letter-spacing:.8px;color:var(--text3);border-bottom:1px solid var(--border);position:sticky;top:0;background:var(--panel);z-index:1">Shortcuts</div>
           <div class="sc-row"><span class="sc-desc">Play / Pause</span><span class="sc-keys"><kbd>Space</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Close editor &amp; play</span><span class="sc-keys"><kbd>F9</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Toggle Live mode</span><span class="sc-keys"><kbd>L</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Capture subtitle (Live)</span><span class="sc-keys"><kbd>N</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Click video</span><span class="sc-keys"><kbd>Click</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Mark subtitle</span><span class="sc-keys"><kbd>M</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Seek ±1s</span><span class="sc-keys"><kbd>←</kbd><kbd>→</kbd></span></div>
@@ -455,6 +480,8 @@ let zoomLevel = 1;
 // IN/OUT points (null = not set)
 let inPoint  = null;
 let outPoint = null;
+// Waveform
+let waveformData = null;
 
 // ── UNDO ──────────────────────────────────────────
 const undoStack = [];
@@ -485,8 +512,9 @@ function undo() {
 }
 undoBtn.onclick = undo;
 
-const video         = document.getElementById('videoEl');
-const subOverlay    = document.getElementById('subOverlay');
+const video          = document.getElementById('videoEl');
+const subOverlay     = document.getElementById('subOverlay');
+const waveformCanvas = document.getElementById('waveformCanvas');
 const timeReadout   = document.getElementById('timeReadout');
 const tlPlayhead    = document.getElementById('tlPlayhead');
 const tlLane        = document.getElementById('tlLane');
@@ -517,6 +545,7 @@ function loadFile(f) {
     if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; }
   }
   document.getElementById('videoInput').value = '';
+  decodeWaveform(blobUrl);
   renderBin(); triggerSave();
 }
 const videoArea = document.getElementById('videoArea');
@@ -615,6 +644,7 @@ function applyZoom(newZoom) {
     const newHeadPixelAbs = pct * newInnerW;
     subTimeline.scrollLeft = newHeadPixelAbs - headOffsetInView;
     updateScrollThumb();
+    drawWaveform();
   });
 }
 
@@ -759,6 +789,94 @@ function updateCueBanner() {
 cueBtn.onclick = () => { cueMode ? exitCueMode(false) : enterCueMode(); };
 document.getElementById('cueBannerExit').onclick = () => exitCueMode(false);
 
+// ── LIVE MODE ──────────────────────────────────────
+let liveMode = false, liveActiveSub = null, livePauseTimer = null, liveCountdownInterval = null, livePausedByLive = false;
+const liveBtn          = document.getElementById('liveBtn');
+const liveBanner       = document.getElementById('liveBanner');
+const liveInputWrap    = document.getElementById('liveInputWrap');
+const liveTextArea     = document.getElementById('liveTextArea');
+const liveCountdownBadge = document.getElementById('liveCountdownBadge');
+
+function enterLiveMode() {
+  if (!video.src || video.readyState < 1) return showToast('Load a video first');
+  if (cueMode) exitCueMode(false);
+  liveMode = true; liveActiveSub = null;
+  liveBtn.classList.add('live-active');
+  liveBanner.classList.add('active');
+  showToast('Live mode — press N to capture', 'yellow');
+}
+function exitLiveMode() {
+  if (liveActiveSub) { closeLiveSub(); refreshAll(); triggerSave(); }
+  clearTimeout(livePauseTimer); clearInterval(liveCountdownInterval);
+  if (livePausedByLive) { video.play(); livePausedByLive = false; }
+  liveMode = false;
+  liveBtn.classList.remove('live-active');
+  liveBanner.classList.remove('active');
+  hideLiveInput();
+}
+function liveN() {
+  if (!video.src || video.readyState < 1) return;
+  const t = parseFloat(video.currentTime.toFixed(3));
+  if (liveActiveSub) {
+    closeLiveSub(t);
+    clearTimeout(livePauseTimer); clearInterval(liveCountdownInterval);
+    liveCountdownBadge.textContent = '';
+  }
+  saveUndo();
+  const ns = { id: nextId++, start: t, end: parseFloat((t + 10).toFixed(3)), lines: [''] };
+  subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start);
+  selectedId = ns.id; liveActiveSub = ns.id;
+  addOrUpdateCueBlock(ns);
+  renderList();
+  if (!video.paused) { video.pause(); livePausedByLive = true; }
+  showLiveInput();
+  startLiveCountdown();
+  triggerSave();
+}
+function closeLiveSub(endTime) {
+  if (!liveActiveSub) return;
+  const sub = subtitles.find(s => s.id === liveActiveSub);
+  if (sub) {
+    const text = liveTextArea.value.trim();
+    sub.lines = text ? text.split('\n') : [''];
+    sub.end = Math.max(sub.start + 0.5, endTime !== undefined ? endTime : parseFloat(video.currentTime.toFixed(3)));
+    addOrUpdateCueBlock(sub);
+  }
+  liveActiveSub = null;
+}
+function showLiveInput() {
+  liveTextArea.value = '';
+  liveInputWrap.classList.add('visible');
+  setTimeout(() => liveTextArea.focus(), 50);
+}
+function hideLiveInput() {
+  liveInputWrap.classList.remove('visible');
+  liveCountdownBadge.textContent = '';
+}
+function startLiveCountdown() {
+  clearTimeout(livePauseTimer); clearInterval(liveCountdownInterval);
+  let remaining = 2;
+  liveCountdownBadge.textContent = '▶ resuming in ' + remaining + 's';
+  liveCountdownInterval = setInterval(() => {
+    remaining--;
+    if (remaining > 0) liveCountdownBadge.textContent = '▶ resuming in ' + remaining + 's';
+    else { clearInterval(liveCountdownInterval); liveCountdownBadge.textContent = ''; }
+  }, 1000);
+  livePauseTimer = setTimeout(() => { if (liveMode) { livePausedByLive = false; video.play(); } }, 2000);
+}
+liveBtn.onclick = () => { liveMode ? exitLiveMode() : enterLiveMode(); };
+document.getElementById('liveBannerExit').onclick = () => exitLiveMode();
+liveTextArea.addEventListener('keydown', e => {
+  if (e.key === 'Escape') { e.preventDefault(); exitLiveMode(); return; }
+  if (e.key === 'Enter' && !e.shiftKey) {
+    e.preventDefault();
+    clearTimeout(livePauseTimer); clearInterval(liveCountdownInterval);
+    closeLiveSub(); hideLiveInput();
+    livePausedByLive = false; video.play();
+    refreshAll(); triggerSave();
+  }
+});
+
 // ── MARK ──────────────────────────────────────────
 const markBtn = document.getElementById('markBtn');
 function doMark() {
@@ -837,6 +955,8 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ' && !inT && !inCE) { e.preventDefault(); togglePlay(); return; }
   if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !inI && !inT && !inCE) { e.preventDefault(); clearInPoint(); clearOutPoint(); showToast('IN/OUT cleared'); return; }
   if (e.key === 'm' && !inI && !inT && !inCE) { e.preventDefault(); doMark(); return; }
+  if (e.key === 'l' && !inI && !inT && !inCE) { e.preventDefault(); liveMode ? exitLiveMode() : enterLiveMode(); return; }
+  if (e.key === 'n' && !inI && !inT && !inCE && liveMode) { e.preventDefault(); liveN(); return; }
 
   // I key: set IN point (only when not in any text input)
   if (e.key === 'i' && !inI && !inT && !inCE) {
@@ -1935,7 +2055,44 @@ function showToast(msg, cls='') {
   const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show ' + cls;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = 'toast', 2200);
 }
-function refreshAll() { renderList(); renderTimeline(); }
+function refreshAll() { renderList(); renderTimeline(); drawWaveform(); }
+
+// ── WAVEFORM ──────────────────────────────────────
+async function decodeWaveform(blobUrl) {
+  waveformData = null;
+  try {
+    const resp   = await fetch(blobUrl);
+    const ab     = await resp.arrayBuffer();
+    const actx   = new (window.AudioContext || window.webkitAudioContext)();
+    const buf    = await actx.decodeAudioData(ab);
+    const raw    = buf.getChannelData(0);
+    const N      = 2000;
+    const block  = Math.max(1, Math.floor(raw.length / N));
+    waveformData = new Float32Array(N);
+    for (let i = 0; i < N; i++) {
+      let mx = 0;
+      for (let j = 0; j < block; j++) { const v = Math.abs(raw[i * block + j] || 0); if (v > mx) mx = v; }
+      waveformData[i] = mx;
+    }
+    await actx.close();
+    requestAnimationFrame(drawWaveform);
+  } catch(e) { /* silent — no waveform if decode fails or file too large */ }
+}
+function drawWaveform() {
+  if (!waveformCanvas || !waveformData) return;
+  const w = waveformCanvas.offsetWidth, h = waveformCanvas.offsetHeight;
+  if (!w || !h) return;
+  waveformCanvas.width = w; waveformCanvas.height = h;
+  const ctx = waveformCanvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  ctx.fillStyle = 'rgba(190,210,255,1)';
+  const barW = w / waveformData.length;
+  for (let i = 0; i < waveformData.length; i++) {
+    const barH = Math.max(1, waveformData[i] * h);
+    ctx.fillRect(i * barW, h - barH, Math.max(1, barW - 0.5), barH);
+  }
+}
+
 refreshAll();
 initAuth();
 </script>
