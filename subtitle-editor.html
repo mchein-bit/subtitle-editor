@@ -516,6 +516,7 @@ function loadFile(f) {
     const cur = projects.find(p => p.id === activeProjectId);
     if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; }
   }
+  document.getElementById('videoInput').value = '';
   renderBin(); triggerSave();
 }
 const videoArea = document.getElementById('videoArea');
@@ -1826,12 +1827,14 @@ function renderBin() {
           const next = projects[0];
           subtitles = JSON.parse(JSON.stringify(next.subtitles)); nextId = next.nextId;
           selectedId = null; selectedIds = new Set();
+          subOverlay.innerHTML = '';
           if (next.videoBlobUrl) { video.src = next.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
           else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
         } else {
           activeProjectId = null;
           subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
           video.src = ''; video.style.display = 'none';
+          subOverlay.innerHTML = '';
           document.getElementById('videoPlaceholder').style.display = '';
         }
       }
@@ -1850,6 +1853,7 @@ function switchProject(id) {
   const proj = projects.find(p => p.id === id); if (!proj) return;
   subtitles = JSON.parse(JSON.stringify(proj.subtitles)); nextId = proj.nextId;
   selectedId = null; selectedIds = new Set();
+  subOverlay.innerHTML = '';
   if (proj.videoBlobUrl) { video.src = proj.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
   else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
   renderBin(); refreshAll(); showToast('Switched to: ' + proj.name);
@@ -1862,6 +1866,7 @@ document.getElementById('binAddBtn').addEventListener('click', async () => {
   projects.push(newProj); activeProjectId = newProj.id;
   subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
   video.src = ''; video.style.display = 'none';
+  subOverlay.innerHTML = '';
   document.getElementById('videoPlaceholder').style.display = '';
   renderBin(); refreshAll(); showToast('New project "' + newProj.name + '" — open a video to begin');
   if (currentUser) {
