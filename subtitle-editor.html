@@ -353,7 +353,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
     <div style="height:32px;background:var(--panel2);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 12px;gap:10px;flex-shrink:0">
       <span style="font-family:var(--mono);font-size:10px;color:var(--text3);white-space:nowrap;flex-shrink:0">ZOOM</span>
       <button id="zoomOut" style="font-family:var(--mono);font-size:13px;width:22px;height:22px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">−</button>
-      <input type="range" id="zoomRange" min="1" max="10" step="0.25" value="1" style="width:120px;flex-shrink:0;accent-color:var(--accent);cursor:pointer">
+      <input type="range" id="zoomRange" min="1" max="50" step="0.25" value="1" style="width:120px;flex-shrink:0;accent-color:var(--accent);cursor:pointer">
       <button id="zoomIn" style="font-family:var(--mono);font-size:13px;width:22px;height:22px;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text2);cursor:pointer;display:flex;align-items:center;justify-content:center;flex-shrink:0">+</button>
       <span style="font-family:var(--mono);font-size:10px;color:var(--accent);min-width:28px;flex-shrink:0" id="zoomLabel">1×</span>
     </div>
@@ -388,6 +388,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
           <div class="sc-row"><span class="sc-desc">Capture subtitle (Live)</span><span class="sc-keys"><kbd>N</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Click video</span><span class="sc-keys"><kbd>Click</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Mark subtitle</span><span class="sc-keys"><kbd>M</kbd></span></div>
+          <div class="sc-row"><span class="sc-desc">Gap / set OUT (Cue)</span><span class="sc-keys"><kbd>,</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Seek ±1s</span><span class="sc-keys"><kbd>←</kbd><kbd>→</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Seek ±0.1s</span><span class="sc-keys"><kbd>⇧←→</kbd></span></div>
           <div class="sc-row"><span class="sc-desc">Seek ±5s</span><span class="sc-keys"><kbd>^←→</kbd></span></div>
@@ -540,6 +541,7 @@ function loadFile(f) {
     const newProj = { id: Date.now(), name, videoName: f.name, videoBlobUrl: blobUrl, subtitles: [], nextId: 1 };
     projects.push(newProj); activeProjectId = newProj.id;
     subtitles = []; nextId = 1;
+    syncFilename(name);
   } else {
     const cur = projects.find(p => p.id === activeProjectId);
     if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; }
@@ -650,7 +652,7 @@ function applyZoom(newZoom) {
 
 zoomRange.addEventListener('input', () => applyZoom(parseFloat(zoomRange.value)));
 document.getElementById('zoomOut').onclick = () => applyZoom(Math.max(1, parseFloat(zoomRange.value) - 0.5));
-document.getElementById('zoomIn').onclick  = () => applyZoom(Math.min(10, parseFloat(zoomRange.value) + 0.5));
+document.getElementById('zoomIn').onclick  = () => applyZoom(Math.min(50, parseFloat(zoomRange.value) + 0.5));
 
 // ── TIMELINE MINI-SCROLL BAR ───────────────────────
 const tlScrollBar   = document.getElementById('tlScrollBar');
@@ -760,21 +762,57 @@ const cueBtn        = document.getElementById('cueBtn');
 function enterCueMode() {
   if (!subtitles.length) return showToast('Import text first');
   if (!video.src || video.readyState < 1) return showToast('Load a video first');
-  cueOrderFixed = [...subtitles].sort((a, b) => a.id - b.id).map(s => s.id);
-  cueMode = true; cueIndex = 0;
-  subtitles.forEach(s => { s.start = 0; s.end = 0; });
-  tlLane.innerHTML = '';
+  const canResume = cueOrderFixed.length > 0 && cueIndex > 0 && cueIndex < cueOrderFixed.length;
+  if (canResume) {
+    // Resume: rebuild timeline blocks for already-timed subs, leave them untouched
+    tlLane.innerHTML = '';
+    for (let i = 0; i < cueIndex; i++) {
+      const s = subtitles.find(s => s.id === cueOrderFixed[i]);
+      if (s && s.end > s.start) addOrUpdateCueBlock(s);
+    }
+    showToast(`Cue resumed from ${cueIndex + 1} / ${cueOrderFixed.length}`, 'yellow');
+  } else {
+    // Fresh start
+    cueOrderFixed = [...subtitles].sort((a, b) => a.id - b.id).map(s => s.id);
+    cueIndex = 0;
+    subtitles.forEach(s => { s.start = 0; s.end = 0; });
+    tlLane.innerHTML = '';
+    showToast('Cue ON — press M when each subtitle should start', 'yellow');
+  }
+  cueMode = true;
   cueBtn.classList.add('cue-active');
   updateCueBanner();
-  showToast('Cue ON — press M when each subtitle should start', 'yellow');
 }
 function exitCueMode(fromLastMark) {
   cueMode = false;
   cueBtn.classList.remove('cue-active');
   cueBanner.classList.remove('active');
-  showToast(fromLastMark ? 'Cue complete ✓' : 'Cue cancelled', fromLastMark ? 'yellow' : '');
-  cueOrderFixed = [];
+  if (fromLastMark) {
+    cueOrderFixed = []; cueIndex = 0;
+    showToast('Cue complete ✓', 'yellow');
+  } else {
+    // Paused — preserve cueOrderFixed and cueIndex for resume
+    showToast(cueIndex > 0 ? `Cue paused — ${cueIndex}/${cueOrderFixed.length} timed` : 'Cue cancelled');
+  }
+  updateCueResumeIndicator();
   refreshAll();
+}
+function updateCueResumeIndicator() {
+  const paused = !cueMode && cueOrderFixed.length > 0 && cueIndex > 0 && cueIndex < cueOrderFixed.length;
+  cueBtn.textContent = paused ? `⏱ Cue ↻${cueIndex + 1}/${cueOrderFixed.length}` : '⏱ Cue';
+  cueBtn.title = paused ? `Resume cue from subtitle ${cueIndex + 1} of ${cueOrderFixed.length}` : '';
+}
+function doCueComma() {
+  if (!cueMode || cueIndex === 0) return;
+  const t = parseFloat(video.currentTime.toFixed(3));
+  const prev = subtitles.find(s => s.id === cueOrderFixed[cueIndex - 1]);
+  if (prev && prev.start < t) {
+    saveUndo();
+    prev.end = t;
+    addOrUpdateCueBlock(prev);
+    showToast('Gap — OUT → ' + fmtDisp(t), 'yellow');
+    triggerSave();
+  }
 }
 function updateCueBanner() {
   if (!cueMode) return;
@@ -955,6 +993,7 @@ document.addEventListener('keydown', e => {
   if (e.key === ' ' && !inT && !inCE) { e.preventDefault(); togglePlay(); return; }
   if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !inI && !inT && !inCE) { e.preventDefault(); clearInPoint(); clearOutPoint(); showToast('IN/OUT cleared'); return; }
   if (e.key === 'm' && !inI && !inT && !inCE) { e.preventDefault(); doMark(); return; }
+  if (e.key === ',' && !inI && !inT && !inCE && cueMode) { e.preventDefault(); doCueComma(); return; }
   if (e.key === 'l' && !inI && !inT && !inCE) { e.preventDefault(); liveMode ? exitLiveMode() : enterLiveMode(); return; }
   if (e.key === 'n' && !inI && !inT && !inCE && liveMode) { e.preventDefault(); liveN(); return; }
 
@@ -1303,6 +1342,16 @@ function renderList() {
 function updateDurBadge(row, sub) { const b = row.querySelector('.dur-badge'); if (b) b.textContent = (sub.end - sub.start).toFixed(2) + 's'; }
 function refreshTimeline() { renderTimeline(); }
 
+// Close sub-millisecond floating-point gaps between adjacent subtitles
+function closeSubGaps() {
+  subtitles.forEach(s => { s.start = parseFloat(s.start.toFixed(3)); s.end = parseFloat(s.end.toFixed(3)); });
+  const sorted = [...subtitles].filter(s => s.end > s.start).sort((a, b) => a.start - b.start);
+  for (let i = 0; i < sorted.length - 1; i++) {
+    const gap = sorted[i + 1].start - sorted[i].end;
+    if (gap >= 0 && gap < 0.001) sorted[i + 1].start = sorted[i].end;
+  }
+}
+
 function applyMarkdown(text) {
   return text
     .replace(/\*\*(.+?)\*\*/g, '<b>$1</b>').replace(/__(.+?)__/g, '<b>$1</b>')
@@ -1533,7 +1582,7 @@ function renderTimeline() {
               });
             });
           }
-          refreshAll(); triggerSave();
+          closeSubGaps(); refreshAll(); triggerSave();
         }
         document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
       });
@@ -1663,7 +1712,7 @@ function renderTimeline() {
             } else { prev.end = sub.start; }
           }
         }
-        renderTimeline(); triggerSave();
+        closeSubGaps(); refreshAll(); triggerSave();
       }
       document.addEventListener('mousemove', onMove); document.addEventListener('mouseup', onUp);
     });
@@ -1863,6 +1912,7 @@ async function loadFromSupabase() {
   activeProjectId = projects[0].id;
   subtitles = JSON.parse(JSON.stringify(projects[0].subtitles)); nextId = projects[0].nextId;
   selectedId = null; selectedIds = new Set();
+  syncFilename(projects[0].name);
   renderBin(); refreshAll(); showToast('Loaded ' + projects.length + ' project(s) from cloud');
 }
 
@@ -1968,12 +2018,17 @@ function renderBin() {
   });
 }
 
+function syncFilename(name) {
+  const fi = document.getElementById('filenameInput');
+  if (fi) fi.value = name || '';
+}
 function switchProject(id) {
   saveCurrentProject(); activeProjectId = id;
   const proj = projects.find(p => p.id === id); if (!proj) return;
   subtitles = JSON.parse(JSON.stringify(proj.subtitles)); nextId = proj.nextId;
   selectedId = null; selectedIds = new Set();
   subOverlay.innerHTML = '';
+  syncFilename(proj.name);
   if (proj.videoBlobUrl) { video.src = proj.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
   else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
   renderBin(); refreshAll(); showToast('Switched to: ' + proj.name);
@@ -1988,6 +2043,7 @@ document.getElementById('binAddBtn').addEventListener('click', async () => {
   video.src = ''; video.style.display = 'none';
   subOverlay.innerHTML = '';
   document.getElementById('videoPlaceholder').style.display = '';
+  syncFilename(newProj.name);
   renderBin(); refreshAll(); showToast('New project "' + newProj.name + '" — open a video to begin');
   if (currentUser) {
     const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name: newProj.name, video_name: '' }).select().single();
