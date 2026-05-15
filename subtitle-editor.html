@@ -753,7 +753,7 @@ document.getElementById('inBadge').addEventListener('click',  () => { clearInPoi
 document.getElementById('outBadge').addEventListener('click', () => { clearOutPoint(); });
 
 // ── CUE MODE ──────────────────────────────────────
-let cueMode = false, cueIndex = 0, cueOrderFixed = [];
+let cueMode = false, cueIndex = 0, cueOrderFixed = [], cueLastClosedByComma = false;
 const cueBanner     = document.getElementById('cueBanner');
 const cueBannerText = document.getElementById('cueBannerText');
 const cueBannerIdx  = document.getElementById('cueBannerIdx');
@@ -763,6 +763,7 @@ function enterCueMode() {
   if (!subtitles.length) return showToast('Import text first');
   if (!video.src || video.readyState < 1) return showToast('Load a video first');
   const canResume = cueOrderFixed.length > 0 && cueIndex > 0 && cueIndex < cueOrderFixed.length;
+  cueLastClosedByComma = false;
   if (canResume) {
     // Resume: rebuild timeline blocks for already-timed subs, leave them untouched
     tlLane.innerHTML = '';
@@ -809,6 +810,7 @@ function doCueComma() {
   if (prev && prev.start < t) {
     saveUndo();
     prev.end = t;
+    cueLastClosedByComma = true;
     addOrUpdateCueBlock(prev);
     showToast('Gap — OUT → ' + fmtDisp(t), 'yellow');
     triggerSave();
@@ -926,10 +928,11 @@ function doMark() {
     const cur   = subtitles.find(s => s.id === curId);
     if (!cur) { cueIndex++; if (cueIndex < cueOrderFixed.length) updateCueBanner(); else exitCueMode(true); return; }
     saveUndo();
-    if (cueIndex > 0) {
+    if (cueIndex > 0 && !cueLastClosedByComma) {
       const prev = subtitles.find(s => s.id === cueOrderFixed[cueIndex - 1]);
       if (prev && prev.start < t) { prev.end = t; addOrUpdateCueBlock(prev); }
     }
+    cueLastClosedByComma = false;
     const dur = video.duration && isFinite(video.duration) ? video.duration : 9999;
     cur.start = t; cur.end = parseFloat(Math.min(dur, t + 10).toFixed(3));
     subtitles.forEach(s => {
