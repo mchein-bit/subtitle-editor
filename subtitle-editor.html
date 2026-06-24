@@ -311,7 +311,7 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
   <div class="menubar-logo">SubEdit</div>
   <button class="menu-btn" id="loadVideoBtn">📂 Open Video</button>
   <button class="menu-btn ghost" id="detachVideoBtn" style="display:none" title="Remove video from this project (subtitles are kept)">✕ Video</button>
-  <input type="file" id="videoInput" accept="video/*">
+  <input type="file" id="videoInput" accept="video/*,audio/*,.wav,.mp3,.m4a,.aac">
   <div class="menu-sep"></div>
   <button class="menu-btn ghost" id="undoBtn" title="Undo (Ctrl+Z)" style="opacity:.4" disabled>↩ Undo</button>
   <div class="menu-sep"></div>
@@ -349,10 +349,17 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
             <path d="M15 10l4.55-2.6A1 1 0 0121 8.26v7.48a1 1 0 01-1.45.86L15 14M3 8a2 2 0 012-2h10a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2V8z"/>
           </svg>
         </div>
-        <strong>Open a video to begin</strong>
-        <small>MP4 · MOV · WebM — or drag &amp; drop</small>
+        <strong>Open a video or audio file to begin</strong>
+        <small>MP4 · MOV · WebM · MP3 · WAV · M4A — or drag &amp; drop</small>
       </div>
       <video id="videoEl" style="display:none" playsinline></video>
+      <div id="audioPlaceholder" style="display:none;position:absolute;inset:0;flex-direction:column;align-items:center;justify-content:center;gap:0;background:#0d0d10;cursor:pointer" onclick="togglePlay()">
+        <div id="audioPh-icon" style="color:var(--green);opacity:.7;flex-shrink:0;margin-bottom:10px">
+          <svg width="48" height="48" fill="none" stroke="currentColor" stroke-width="1.2" viewBox="0 0 24 24"><path d="M9 18V5l12-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="18" cy="16" r="3"/></svg>
+        </div>
+        <div id="audioPh-name" style="font-family:var(--mono);font-size:12px;color:var(--text2);max-width:80%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;margin-bottom:12px"></div>
+        <canvas id="audioPh-wave" style="width:100%;height:80px;display:block;flex-shrink:0"></canvas>
+      </div>
       <div class="sub-overlay" id="subOverlay"></div>
       <div class="cue-banner" id="cueBanner">
         <span class="cue-banner-idx" id="cueBannerIdx">1/1</span>
@@ -653,14 +660,41 @@ const subTimeline   = document.getElementById('subTimeline');
 const PLAY  = '<polygon points="5 3 19 12 5 21"/>';
 const PAUSE = '<rect x="5" y="4" width="4" height="16"/><rect x="15" y="4" width="4" height="16"/>';
 
-// ── VIDEO LOAD ─────────────────────────────────────
+// ── MEDIA LOAD ─────────────────────────────────────
+const AUDIO_EXTS = /\.(mp3|wav|m4a|aac|ogg|flac)$/i;
+function isAudioFile(f) { return f.type.startsWith('audio/') || AUDIO_EXTS.test(f.name); }
+function isMediaFile(f) { return f.type.startsWith('video/') || isAudioFile(f); }
+function isAudioName(name) { return AUDIO_EXTS.test(name || ''); }
+
 function updateVideoButtons() {
   const loadBtn    = document.getElementById('loadVideoBtn');
   const detachBtn  = document.getElementById('detachVideoBtn');
   const cur        = activeProjectId !== null ? projects.find(p => p.id === activeProjectId) : null;
-  const hasVideo   = !!(cur && cur.videoBlobUrl);
-  loadBtn.textContent  = hasVideo ? '↻ Replace Video' : '📂 Open Video';
-  detachBtn.style.display = hasVideo ? '' : 'none';
+  const hasMedia   = !!(cur && cur.videoBlobUrl);
+  const isAudio    = !!(cur && cur.isAudio);
+  loadBtn.textContent = hasMedia ? (isAudio ? '↻ Replace Audio' : '↻ Replace Video') : '📂 Open Media';
+  detachBtn.title  = isAudio ? 'Remove audio from this project (subtitles are kept)' : 'Remove video from this project (subtitles are kept)';
+  detachBtn.textContent = isAudio ? '✕ Audio' : '✕ Video';
+  detachBtn.style.display = hasMedia ? '' : 'none';
+  // Show/hide video element vs audio placeholder vs empty placeholder
+  const videoEl  = document.getElementById('videoEl');
+  const audioPh  = document.getElementById('audioPlaceholder');
+  const emptyPh  = document.getElementById('videoPlaceholder');
+  if (hasMedia && isAudio) {
+    videoEl.style.display = 'none';
+    audioPh.style.display = 'flex';
+    emptyPh.style.display = 'none';
+    document.getElementById('audioPh-name').textContent = cur.videoName || '';
+    drawAudioPlaceholderWave();
+  } else if (hasMedia) {
+    videoEl.style.display = 'block';
+    audioPh.style.display = 'none';
+    emptyPh.style.display = 'none';
+  } else {
+    videoEl.style.display = 'none';
+    audioPh.style.display = 'none';
+    emptyPh.style.display = '';
+  }
 }
 
 document.getElementById('loadVideoBtn').onclick = () => document.getElementById('videoInput').click();
@@ -670,30 +704,29 @@ document.getElementById('videoInput').onchange = e => { const f = e.target.files
 document.getElementById('detachVideoBtn').addEventListener('click', () => {
   if (activeProjectId === null) return;
   const cur = projects.find(p => p.id === activeProjectId); if (!cur) return;
+  const wasAudio = cur.isAudio;
   if (cur.videoBlobUrl) { URL.revokeObjectURL(cur.videoBlobUrl); cur.videoBlobUrl = ''; }
-  cur.videoName = '';
-  video.pause(); video.src = ''; video.style.display = 'none';
-  document.getElementById('videoPlaceholder').style.display = '';
-  waveformData = null; drawWaveform();
+  cur.videoName = ''; cur.isAudio = false;
+  video.pause(); video.src = '';
+  waveformData = null; drawWaveform(); drawAudioPlaceholderWave();
   renderBin(); updateVideoButtons(); triggerSave();
-  showToast('Video detached — subtitles kept');
+  showToast((wasAudio ? 'Audio' : 'Video') + ' detached — subtitles kept');
 });
 
 function loadFile(f) {
   const cur = activeProjectId !== null ? projects.find(p => p.id === activeProjectId) : null;
   if (cur && cur.videoBlobUrl) URL.revokeObjectURL(cur.videoBlobUrl);
   const blobUrl = URL.createObjectURL(f);
+  const audio = isAudioFile(f);
   video.src = blobUrl;
-  video.style.display = 'block';
-  document.getElementById('videoPlaceholder').style.display = 'none';
   if (activeProjectId === null) {
     const name = f.name.replace(/\.[^.]+$/, '');
-    const newProj = { id: Date.now(), name, videoName: f.name, videoBlobUrl: blobUrl, subtitles: [], nextId: 1, folderId: null, undoStack: [] };
+    const newProj = { id: Date.now(), name, videoName: f.name, videoBlobUrl: blobUrl, subtitles: [], nextId: 1, folderId: null, undoStack: [], isAudio: audio };
     projects.push(newProj); activeProjectId = newProj.id;
     subtitles = []; nextId = 1;
     syncFilename(name);
   } else {
-    if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; }
+    if (cur) { cur.videoBlobUrl = blobUrl; cur.videoName = f.name; cur.isAudio = audio; }
   }
   document.getElementById('videoInput').value = '';
   decodeWaveform(blobUrl);
@@ -701,7 +734,7 @@ function loadFile(f) {
 }
 const videoArea = document.getElementById('videoArea');
 videoArea.addEventListener('dragover', e => e.preventDefault());
-videoArea.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && f.type.startsWith('video/')) loadFile(f); });
+videoArea.addEventListener('drop', e => { e.preventDefault(); const f = e.dataTransfer.files[0]; if (f && isMediaFile(f)) loadFile(f); });
 video.addEventListener('click', togglePlay);
 
 // ── PLAYBACK ───────────────────────────────────────
@@ -796,6 +829,7 @@ function applyZoom(newZoom) {
     subTimeline.scrollLeft = newHeadPixelAbs - headOffsetInView;
     updateScrollThumb();
     drawWaveform();
+    drawAudioPlaceholderWave();
   });
 }
 
@@ -2026,8 +2060,7 @@ document.getElementById('signOutBtn').addEventListener('click', async () => {
   currentUser = null; updateUserDisplay(); setSaveStatus('hidden');
   projects.length = 0; folders.length = 0; activeProjectId = null;
   subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
-  video.src = ''; video.style.display = 'none';
-  document.getElementById('videoPlaceholder').style.display = '';
+  video.src = '';
   renderBin(); refreshAll(); syncUndoBtn(); updateVideoButtons(); showAuthModal();
 });
 
@@ -2075,7 +2108,7 @@ async function loadFromSupabase() {
       id: i + 1, supabaseId: rs.id,
       start: parseFloat(rs.start_time), end: parseFloat(rs.end_time), lines: rs.lines || [''],
     }));
-    projects.push({ id: Date.now() + Math.random(), supabaseId: rp.id, name: rp.name, videoName: rp.video_name || '', videoBlobUrl: '', subtitles: subs, nextId: subs.length + 1, folderId: rp.folder_id || null, undoStack: [], isShared: false });
+    projects.push({ id: Date.now() + Math.random(), supabaseId: rp.id, name: rp.name, videoName: rp.video_name || '', videoBlobUrl: '', subtitles: subs, nextId: subs.length + 1, folderId: rp.folder_id || null, undoStack: [], isShared: false, isAudio: isAudioName(rp.video_name) });
   });
   rSharedProjects.forEach(rp => {
     const shareRow = (rShares || []).find(s => s.project_id === rp.id);
@@ -2083,7 +2116,7 @@ async function loadFromSupabase() {
       id: i + 1, supabaseId: rs.id,
       start: parseFloat(rs.start_time), end: parseFloat(rs.end_time), lines: rs.lines || [''],
     }));
-    projects.push({ id: Date.now() + Math.random(), supabaseId: rp.id, name: rp.name, videoName: rp.video_name || '', videoBlobUrl: '', subtitles: subs, nextId: subs.length + 1, folderId: null, undoStack: [], isShared: true, ownerEmail: shareRow ? (shareRow.owner_email || '') : '' });
+    projects.push({ id: Date.now() + Math.random(), supabaseId: rp.id, name: rp.name, videoName: rp.video_name || '', videoBlobUrl: '', subtitles: subs, nextId: subs.length + 1, folderId: null, undoStack: [], isShared: true, ownerEmail: shareRow ? (shareRow.owner_email || '') : '', isAudio: isAudioName(rp.video_name) });
   });
   if (projects.length) {
     activeProjectId = projects[0].id;
@@ -2171,7 +2204,7 @@ function renderBin() {
     el.dataset.id = p.id;
     el.draggable = true;
     el.style.paddingLeft = (depth * 12 + 8) + 'px';
-    el.innerHTML = `<div class="bin-item-name">${esc(p.name)}</div><div class="bin-item-count">${p.videoBlobUrl ? '🎬 ' + esc(p.videoName || 'video') : '📂 no video'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div><button class="bin-share-btn" title="Share project">↑</button><button class="bin-move-btn" title="Move to folder">↗</button><button class="bin-delete-btn" title="Delete project">×</button>`;
+    el.innerHTML = `<div class="bin-item-name">${esc(p.name)}</div><div class="bin-item-count">${p.videoBlobUrl ? (p.isAudio ? '🎵 ' : '🎬 ') + esc(p.videoName || 'media') : '📂 no media'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div><button class="bin-share-btn" title="Share project">↑</button><button class="bin-move-btn" title="Move to folder">↗</button><button class="bin-delete-btn" title="Delete project">×</button>`;
     el.addEventListener('click', () => switchProject(p.id));
     el.querySelector('.bin-share-btn').addEventListener('click', e => { e.stopPropagation(); openShareModal(p.id); });
     el.addEventListener('dblclick', e => { e.stopPropagation(); const name = prompt('Rename project:', p.name); if (name && name.trim()) { p.name = name.trim(); renderBin(); triggerSave(); } });
@@ -2206,15 +2239,13 @@ function renderBin() {
           activeProjectId = projects[0].id; const next = projects[0];
           subtitles = JSON.parse(JSON.stringify(next.subtitles)); nextId = next.nextId;
           selectedId = null; selectedIds = new Set(); subOverlay.innerHTML = '';
-          if (next.videoBlobUrl) { video.src = next.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
-          else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
+          video.src = next.videoBlobUrl || '';
         } else {
           activeProjectId = null; subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
-          video.src = ''; video.style.display = 'none'; subOverlay.innerHTML = '';
-          document.getElementById('videoPlaceholder').style.display = '';
+          video.src = ''; subOverlay.innerHTML = '';
         }
       }
-      renderBin(); refreshAll(); showToast(`"${p.name}" deleted`);
+      renderBin(); refreshAll(); updateVideoButtons(); showToast(`"${p.name}" deleted`);
       if (currentUser && supabaseId) {
         const { error } = await sb.from('projects').delete().eq('id', supabaseId);
         if (error) showToast('Cloud delete failed: ' + error.message);
@@ -2270,7 +2301,7 @@ function renderBin() {
       el.className = 'bin-item' + (p.id === activeProjectId ? ' active' : '');
       el.dataset.id = p.id;
       el.style.paddingLeft = '8px';
-      el.innerHTML = `<div class="bin-item-name">${esc(p.name)}</div><div class="bin-item-count">${p.videoBlobUrl ? '🎬 ' + esc(p.videoName || 'video') : '📂 no video'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div><span class="bin-shared-badge" title="Shared by ${esc(p.ownerEmail || '')}">${esc(p.ownerEmail || 'shared')}</span>`;
+      el.innerHTML = `<div class="bin-item-name">${esc(p.name)}</div><div class="bin-item-count">${p.videoBlobUrl ? (p.isAudio ? '🎵 ' : '🎬 ') + esc(p.videoName || 'media') : '📂 no media'}</div><div class="bin-item-count">${p.subtitles.length} subtitle${p.subtitles.length !== 1 ? 's' : ''}</div><span class="bin-shared-badge" title="Shared by ${esc(p.ownerEmail || '')}">${esc(p.ownerEmail || 'shared')}</span>`;
       el.addEventListener('click', () => switchProject(p.id));
       binList.appendChild(el);
     });
@@ -2337,11 +2368,10 @@ async function createProjectInFolder(folderId) {
   const newProj = { id: Date.now(), supabaseId: null, name: name.trim(), videoName: '', videoBlobUrl: '', subtitles: [], nextId: 1, folderId: folderId || null, undoStack: [] };
   projects.push(newProj); activeProjectId = newProj.id;
   subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
-  video.src = ''; video.style.display = 'none'; subOverlay.innerHTML = '';
-  document.getElementById('videoPlaceholder').style.display = '';
+  video.src = ''; subOverlay.innerHTML = '';
   syncFilename(newProj.name);
   if (folderId) { const f = folders.find(f => f.id === folderId); if (f) f.expanded = true; }
-  renderBin(); refreshAll(); syncUndoBtn(); updateVideoButtons(); showToast('New project "' + newProj.name + '" — open a video to begin');
+  renderBin(); refreshAll(); syncUndoBtn(); updateVideoButtons(); showToast('New project "' + newProj.name + '" — open a media file to begin');
   if (currentUser) {
     const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name: newProj.name, video_name: '', folder_id: folderId || null }).select().single();
     if (error) showToast('Cloud save failed: ' + error.message);
@@ -2360,8 +2390,7 @@ function switchProject(id) {
   selectedId = null; selectedIds = new Set();
   subOverlay.innerHTML = '';
   syncFilename(proj.name);
-  if (proj.videoBlobUrl) { video.src = proj.videoBlobUrl; video.style.display = 'block'; document.getElementById('videoPlaceholder').style.display = 'none'; }
-  else { video.src = ''; video.style.display = 'none'; document.getElementById('videoPlaceholder').style.display = ''; }
+  video.src = proj.videoBlobUrl || '';
   renderBin(); refreshAll(); syncUndoBtn(); updateVideoButtons(); showToast('Switched to: ' + proj.name);
 }
 
@@ -2371,10 +2400,9 @@ document.getElementById('binAddBtn').addEventListener('click', async () => {
   const newProj = { id: Date.now(), supabaseId: null, name: name.trim(), videoName: '', videoBlobUrl: '', subtitles: [], nextId: 1, folderId: null, undoStack: [] };
   projects.push(newProj); activeProjectId = newProj.id;
   subtitles = []; nextId = 1; selectedId = null; selectedIds = new Set();
-  video.src = ''; video.style.display = 'none'; subOverlay.innerHTML = '';
-  document.getElementById('videoPlaceholder').style.display = '';
+  video.src = ''; subOverlay.innerHTML = '';
   syncFilename(newProj.name);
-  renderBin(); refreshAll(); syncUndoBtn(); updateVideoButtons(); showToast('New project "' + newProj.name + '" — open a video to begin');
+  renderBin(); refreshAll(); syncUndoBtn(); updateVideoButtons(); showToast('New project "' + newProj.name + '" — open a media file to begin');
   if (currentUser) {
     const { data, error } = await sb.from('projects').insert({ user_id: currentUser.id, name: newProj.name, video_name: '', folder_id: null }).select().single();
     if (error) showToast('Cloud save failed: ' + error.message);
@@ -2463,9 +2491,10 @@ async function decodeWaveform(blobUrl) {
       waveformData[i] = mx;
     }
     await actx.close();
-    requestAnimationFrame(drawWaveform);
+    requestAnimationFrame(() => { drawWaveform(); drawAudioPlaceholderWave(); });
   } catch(e) { /* silent — no waveform if decode fails or file too large */ }
 }
+
 function drawWaveform() {
   if (!waveformCanvas || !waveformData) return;
   const w = waveformCanvas.offsetWidth, h = waveformCanvas.offsetHeight;
@@ -2479,6 +2508,32 @@ function drawWaveform() {
     const barH = Math.max(1, waveformData[i] * h);
     ctx.fillRect(i * barW, h - barH, Math.max(1, barW - 0.5), barH);
   }
+}
+
+function drawAudioPlaceholderWave() {
+  const canvas = document.getElementById('audioPh-wave');
+  if (!canvas || !waveformData) return;
+  const w = canvas.offsetWidth, h = canvas.offsetHeight;
+  if (!w || !h) return;
+  canvas.width = w; canvas.height = h;
+  const ctx = canvas.getContext('2d');
+  ctx.clearRect(0, 0, w, h);
+  // Centered bar waveform in green
+  const barW = w / waveformData.length;
+  const grad = ctx.createLinearGradient(0, 0, 0, h);
+  grad.addColorStop(0, 'rgba(76,175,125,0.9)');
+  grad.addColorStop(1, 'rgba(76,175,125,0.25)');
+  ctx.fillStyle = grad;
+  for (let i = 0; i < waveformData.length; i++) {
+    const barH = Math.max(2, waveformData[i] * h);
+    ctx.fillRect(i * barW, (h - barH) / 2, Math.max(1, barW - 0.5), barH);
+  }
+}
+
+// Redraw audio placeholder wave on container resize
+if (typeof ResizeObserver !== 'undefined') {
+  new ResizeObserver(() => { if (waveformData) drawAudioPlaceholderWave(); })
+    .observe(document.getElementById('videoArea'));
 }
 
 refreshAll();
