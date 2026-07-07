@@ -302,6 +302,62 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
 #liveCountdownBadge{font-family:var(--mono);font-size:10px;color:rgba(255,110,110,.9);min-height:14px;text-align:right;letter-spacing:.3px}
 #liveTextArea{background:transparent;border:none;border-bottom:1px solid rgba(255,255,255,.18);color:#fff;font-family:var(--ui);font-size:14px;resize:none;outline:none;width:100%;min-height:44px;line-height:1.5;padding-bottom:4px}
 #liveTextArea::placeholder{color:rgba(255,255,255,.3)}
+
+/* ── REVIEW MODE VISIBILITY ──────────────────────────── */
+body.review-mode .project-bin,
+body.review-mode .bin-resizer{display:none!important}
+body.review-mode .bottom{display:none!important}
+#reviewPanel{display:none}
+body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+
+/* ── REVIEW TRANSPORT ────────────────────────────────── */
+#reviewTransport{height:56px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0}
+#rvPlayBtn{font-family:var(--ui);font-size:13px;font-weight:600;padding:7px 22px;border-radius:20px;border:none;background:var(--accent);color:#fff;cursor:pointer;white-space:nowrap;transition:background .12s;flex-shrink:0}
+#rvPlayBtn:hover{background:var(--accent-g)}
+#rvTimeDisplay{font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap;flex-shrink:0;min-width:170px}
+#rvTimeDisplay span{color:var(--text)}
+#rvProgressWrap{flex:1;min-width:0;display:flex;align-items:center}
+#rvProgress{width:100%;accent-color:var(--accent);cursor:pointer;height:4px}
+
+/* ── REVIEW LIST CONTAINER ───────────────────────────── */
+#reviewListWrap{flex:1;min-height:0;overflow-y:auto;padding:16px 24px 40px;background:var(--bg)}
+#reviewListWrap::-webkit-scrollbar{width:6px}
+#reviewListWrap::-webkit-scrollbar-thumb{background:var(--border);border-radius:3px}
+.rv-empty{display:flex;flex-direction:column;align-items:center;justify-content:center;gap:10px;color:var(--text3);font-size:14px;padding:48px 20px;text-align:center}
+
+/* ── REVIEW CARD ─────────────────────────────────────── */
+.rv-card{background:var(--panel);border:1px solid var(--border);border-left:3px solid transparent;border-radius:8px;padding:18px 20px;margin-bottom:12px;transition:border-color .15s,background .15s}
+.rv-card.rv-playing{border-left-color:var(--accent);background:rgba(77,159,255,.05)}
+.rv-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
+.rv-num{font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--panel3);border:1px solid var(--border);border-radius:4px;padding:2px 9px;flex-shrink:0}
+.rv-dur{font-family:var(--mono);font-size:11px;color:var(--text3)}
+
+/* ── REVIEW TEXT EDITOR ──────────────────────────────── */
+.rv-editor{width:100%;background:var(--panel3);border:1px solid var(--border);border-radius:var(--r);color:var(--text);font-family:var(--ui);font-size:16px;line-height:1.65;padding:10px 13px;outline:none;min-height:52px;cursor:text;white-space:pre-wrap;word-break:break-word;transition:border-color .12s;margin-bottom:13px}
+.rv-editor:focus{border-color:var(--accent)}
+.rv-editor b,.rv-editor strong{font-weight:800;color:#fff}
+.rv-editor i,.rv-editor em{font-style:italic;color:#e8e0ff}
+.rv-editor:empty::before{content:attr(data-placeholder);color:var(--text3);font-style:italic;font-size:14px;pointer-events:none}
+
+/* ── REVIEW TIMING ───────────────────────────────────── */
+.rv-timing{display:flex;flex-direction:column;gap:8px;margin-bottom:14px}
+.rv-time-row{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+.rv-time-label{font-family:var(--mono);font-size:11px;font-weight:600;color:var(--text3);text-transform:uppercase;letter-spacing:.5px;width:38px;flex-shrink:0}
+.rv-time-val{font-family:var(--mono);font-size:13px;color:var(--text);background:var(--panel3);border:1px solid var(--border);border-radius:3px;padding:4px 9px;min-width:82px;flex-shrink:0}
+.rv-nudge-pair{display:flex;gap:4px;flex-shrink:0}
+.rv-nudge{font-family:var(--mono);font-size:12px;background:var(--panel3);border:1px solid var(--border);border-radius:3px;color:var(--text2);padding:4px 10px;cursor:pointer;transition:all .1s;white-space:nowrap}
+.rv-nudge:hover{border-color:var(--accent);color:var(--accent)}
+.rv-setnow{font-family:var(--ui);font-size:12px;background:var(--panel3);border:1px solid var(--border);border-radius:3px;color:var(--text3);padding:4px 12px;cursor:pointer;transition:all .1s;white-space:nowrap}
+.rv-setnow:hover{border-color:var(--yellow);color:var(--yellow)}
+
+/* ── REVIEW ACTION BUTTONS ───────────────────────────── */
+.rv-actions{display:flex;gap:8px;flex-wrap:wrap;align-items:center;border-top:1px solid var(--border);padding-top:13px}
+.rv-btn{font-family:var(--ui);font-size:12px;font-weight:500;padding:7px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--panel3);color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap}
+.rv-btn:hover{border-color:var(--border2);color:var(--text);background:var(--panel2)}
+.rv-btn.rv-play-btn{border-color:rgba(77,159,255,.5);color:var(--accent)}
+.rv-btn.rv-play-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
+.rv-btn.rv-danger{border-color:rgba(224,82,82,.4);color:var(--red);background:rgba(224,82,82,.05)}
+.rv-btn.rv-danger:hover{background:rgba(224,82,82,.15);border-color:var(--red)}
 </style>
 <script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2/dist/umd/supabase.min.js"></script>
 </head>
@@ -319,6 +375,8 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
   <div class="menu-sep"></div>
   <button class="menu-btn ghost" id="exportSrtBtn">↓ SRT</button>
   <button class="menu-btn ghost" id="exportVttBtn">↓ VTT</button>
+  <div class="menu-sep"></div>
+  <button class="menu-btn ghost" id="reviewModeBtn">⊞ Review Mode</button>
   <div class="menubar-right">
     <span id="saveStatus" style="display:none;font-family:var(--mono);font-size:11px"></span>
     <div class="menu-sep" id="authSep" style="display:none"></div>
@@ -521,6 +579,20 @@ kbd{font-family:var(--mono);font-size:10px;padding:2px 5px;background:var(--pane
 
     </div>
   </div>
+
+  <!-- ── REVIEW PANEL ── -->
+  <div id="reviewPanel">
+    <div id="reviewTransport">
+      <button id="rvPlayBtn">▶ Play</button>
+      <div id="rvTimeDisplay"><span>0:00:00.00</span> / 0:00:00</div>
+      <div id="rvProgressWrap">
+        <input type="range" id="rvProgress" min="0" max="100" step="0.01" value="0">
+      </div>
+    </div>
+    <div id="reviewListWrap">
+      <div id="reviewList"></div>
+    </div>
+  </div>
 </div>
 <!-- ── AUTH MODAL ── -->
 <div id="authOverlay">
@@ -570,6 +642,8 @@ let inPoint  = null;
 let outPoint = null;
 // Waveform
 let waveformData = null;
+// Review Mode
+let reviewMode = false;
 
 // ── UNDO (per-project) ────────────────────────────
 const undoBtn = document.getElementById('undoBtn');
@@ -741,9 +815,9 @@ video.addEventListener('click', togglePlay);
 const playBtn = document.getElementById('playBtn'), playIcon = document.getElementById('playIcon');
 function togglePlay() { if (!video.src) return; video.paused ? video.play() : video.pause(); }
 playBtn.onclick = togglePlay;
-video.onplay  = () => { playIcon.innerHTML = PAUSE; rafLoop(); };
-video.onpause = () => { playIcon.innerHTML = PLAY; };
-video.onended = () => { playIcon.innerHTML = PLAY; };
+video.onplay  = () => { playIcon.innerHTML = PAUSE; const rb = document.getElementById('rvPlayBtn'); if (rb) rb.textContent = '⏸ Pause'; rafLoop(); };
+video.onpause = () => { playIcon.innerHTML = PLAY;  const rb = document.getElementById('rvPlayBtn'); if (rb) rb.textContent = '▶ Play'; };
+video.onended = () => { playIcon.innerHTML = PLAY;  const rb = document.getElementById('rvPlayBtn'); if (rb) rb.textContent = '▶ Play'; };
 document.getElementById('skipBackBtn').onclick = () => { video.currentTime = Math.max(0, video.currentTime - 5); tickUI(); };
 document.getElementById('skipFwdBtn').onclick  = () => { video.currentTime = Math.min(video.duration || 0, video.currentTime + 5); tickUI(); };
 document.getElementById('speedSel').onchange   = e => { video.playbackRate = parseFloat(e.target.value); };
@@ -768,6 +842,12 @@ function tickUI() {
     if (headX < sl + viewW * 0.15 || headX > sl + viewW * 0.85) {
       subTimeline.scrollLeft = headX - viewW / 2;
     }
+  }
+  if (reviewMode) {
+    const rvProg = document.getElementById('rvProgress');
+    if (rvProg) rvProg.value = p;
+    const rvTime = document.getElementById('rvTimeDisplay');
+    if (rvTime) rvTime.innerHTML = `<span>${fmtFull(t)}</span> / ${fmtFull(d)}`;
   }
 }
 
@@ -1046,11 +1126,11 @@ function liveN() {
     liveCountdownBadge.textContent = '';
   }
   saveUndo();
-  const ns = { id: nextId++, start: t, end: parseFloat((t + 10).toFixed(3)), lines: [''] };
+  const ns = { id: nextId++, supabaseId: crypto.randomUUID(), start: t, end: parseFloat((t + 10).toFixed(3)), lines: [''] };
   subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start);
   selectedId = ns.id; liveActiveSub = ns.id;
   addOrUpdateCueBlock(ns);
-  renderList();
+  reviewMode ? renderReviewList() : renderList();
   if (!video.paused) { video.pause(); livePausedByLive = true; }
   showLiveInput();
   startLiveCountdown();
@@ -1145,7 +1225,7 @@ function doMark() {
     }
   } else {
     saveUndo();
-    const ns = { id: nextId++, start: t, end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
+    const ns = { id: nextId++, supabaseId: crypto.randomUUID(), start: t, end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
     subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start); selectedId = ns.id;
     refreshAll(); showToast('Added at ' + fmtDisp(t), 'yellow'); triggerSave();
   }
@@ -1180,7 +1260,7 @@ document.addEventListener('keydown', e => {
   if ((e.metaKey || e.ctrlKey) && e.key === 'a' && !inI && !inT && !inCE) { e.preventDefault(); clearInPoint(); clearOutPoint(); showToast('IN/OUT cleared'); return; }
   if (e.key === 'm' && !inI && !inT && !inCE) { e.preventDefault(); doMark(); return; }
   if (e.key === ',' && !inI && !inT && !inCE && cueMode) { e.preventDefault(); doCueComma(); return; }
-  if (e.key === 'l' && !inI && !inT && !inCE) { e.preventDefault(); liveMode ? exitLiveMode() : enterLiveMode(); return; }
+  if (e.key === 'l' && !inI && !inT && !inCE && !reviewMode) { e.preventDefault(); liveMode ? exitLiveMode() : enterLiveMode(); return; }
   if (e.key === 'n' && !inI && !inT && !inCE && liveMode) { e.preventDefault(); liveN(); return; }
 
   // I key: set IN point (only when not in any text input)
@@ -1279,7 +1359,7 @@ function saveEditorFromActive() {
 // ── CRUD ──────────────────────────────────────────
 function addSub(t) {
   saveUndo(); t = t !== undefined ? t : (video.currentTime || 0);
-  const ns = { id: nextId++, start: parseFloat(t.toFixed(3)), end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
+  const ns = { id: nextId++, supabaseId: crypto.randomUUID(), start: parseFloat(t.toFixed(3)), end: parseFloat((t + DEFAULT_DUR).toFixed(3)), lines: [''] };
   subtitles.push(ns); subtitles.sort((a, b) => a.start - b.start); selectedId = ns.id;
   refreshAll(); triggerSave();
 }
@@ -1307,7 +1387,7 @@ function splitSub(id, cursor) {
   sub.lines = before ? before.split('\n') : [''];
   sub.end = parseFloat(mid.toFixed(3));
   const dur = sub.end - sub.start;
-  const ns = { id: nextId++, start: parseFloat(mid.toFixed(3)), end: parseFloat((mid + dur).toFixed(3)), lines: after.split('\n') };
+  const ns = { id: nextId++, supabaseId: crypto.randomUUID(), start: parseFloat(mid.toFixed(3)), end: parseFloat((mid + dur).toFixed(3)), lines: after.split('\n') };
   subtitles.splice(subtitles.indexOf(sub) + 1, 0, ns); selectedId = ns.id;
   refreshAll(); showToast('Split'); triggerSave();
 }
@@ -1346,16 +1426,24 @@ function updateOverlay(t) {
 function highlightPlaying(id) {
   document.querySelectorAll('.sub-row').forEach(r => r.classList.toggle('playing', r.dataset.id == id));
   document.querySelectorAll('.tl-block').forEach(b => b.classList.toggle('active', b.dataset.id == id));
-  if (id === null) return;
-  const row = document.querySelector(`.sub-row[data-id="${id}"]`);
-  const scrollEl = document.querySelector('.sub-list-left');
-  if (!row || !scrollEl) return;
-  const rowRect  = row.getBoundingClientRect();
-  const contRect = scrollEl.getBoundingClientRect();
-  const relTop   = rowRect.top - contRect.top + scrollEl.scrollTop;
-  const rowH = row.offsetHeight, viewH = scrollEl.clientHeight;
-  if (relTop < scrollEl.scrollTop || relTop + rowH > scrollEl.scrollTop + viewH) {
-    scrollEl.scrollTo({ top: relTop - viewH / 2 + rowH / 2, behavior: 'smooth' });
+  // Editor list auto-scroll
+  if (id !== null && !reviewMode) {
+    const row = document.querySelector(`.sub-row[data-id="${id}"]`);
+    const scrollEl = document.querySelector('.sub-list-left');
+    if (row && scrollEl) {
+      const rowRect  = row.getBoundingClientRect();
+      const contRect = scrollEl.getBoundingClientRect();
+      const relTop   = rowRect.top - contRect.top + scrollEl.scrollTop;
+      const rowH = row.offsetHeight, viewH = scrollEl.clientHeight;
+      if (relTop < scrollEl.scrollTop || relTop + rowH > scrollEl.scrollTop + viewH) {
+        scrollEl.scrollTo({ top: relTop - viewH / 2 + rowH / 2, behavior: 'smooth' });
+      }
+    }
+  }
+  // Review list highlight + auto-scroll
+  if (reviewMode) {
+    document.querySelectorAll('.rv-card').forEach(c => c.classList.toggle('rv-playing', c.dataset.id == id));
+    if (id !== null) rvAutoScroll(id);
   }
 }
 
@@ -1526,7 +1614,7 @@ function renderList() {
 }
 
 function updateDurBadge(row, sub) { const b = row.querySelector('.dur-badge'); if (b) b.textContent = (sub.end - sub.start).toFixed(2) + 's'; }
-function refreshTimeline() { renderTimeline(); }
+function refreshTimeline() { if (!reviewMode) renderTimeline(); }
 
 // Close sub-millisecond floating-point gaps between adjacent subtitles
 function closeSubGaps() {
@@ -2471,7 +2559,9 @@ function showToast(msg, cls='') {
   const t = document.getElementById('toast'); t.textContent = msg; t.className = 'toast show ' + cls;
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = 'toast', 2200);
 }
-function refreshAll() { renderList(); renderTimeline(); drawWaveform(); }
+function refreshAll() {
+  if (reviewMode) { renderReviewList(); } else { renderList(); renderTimeline(); drawWaveform(); }
+}
 
 // ── WAVEFORM ──────────────────────────────────────
 async function decodeWaveform(blobUrl) {
@@ -2629,6 +2719,271 @@ document.getElementById('shareSubmitBtn').addEventListener('click', async () => 
 });
 
 document.getElementById('shareEmailInput').addEventListener('keydown', e => { if (e.key === 'Enter') document.getElementById('shareSubmitBtn').click(); });
+
+// ── REVIEW MODE ────────────────────────────────────────
+let rvLastManualScroll = 0;
+let rvProgrammaticScroll = false;
+const RV_SCROLL_PAUSE_MS = 4000;
+
+const reviewListWrap = document.getElementById('reviewListWrap');
+reviewListWrap.addEventListener('scroll', () => {
+  if (rvProgrammaticScroll) return;
+  rvLastManualScroll = Date.now();
+});
+
+function toggleReviewMode() {
+  reviewMode = !reviewMode;
+  if (reviewMode) {
+    if (cueMode) exitCueMode(false);
+    if (liveMode) exitLiveMode();
+  }
+  document.body.classList.toggle('review-mode', reviewMode);
+  document.getElementById('reviewModeBtn').textContent = reviewMode ? '← Editor Mode' : '⊞ Review Mode';
+  if (reviewMode) {
+    renderReviewList();
+  } else {
+    renderList(); renderTimeline(); drawWaveform();
+  }
+}
+document.getElementById('reviewModeBtn').addEventListener('click', toggleReviewMode);
+
+function renderReviewList() {
+  const listEl = document.getElementById('reviewList');
+  if (!listEl) return;
+  const sorted = [...subtitles].sort((a, b) => a.start - b.start);
+  listEl.innerHTML = '';
+
+  if (!sorted.length) {
+    const emptyEl = document.createElement('div');
+    emptyEl.className = 'rv-empty';
+    emptyEl.innerHTML = 'No subtitles yet.<br>Switch to Editor Mode to import or add subtitles.';
+    listEl.appendChild(emptyEl);
+    return;
+  }
+
+  sorted.forEach((sub, idx) => {
+    const card = document.createElement('div');
+    card.className = 'rv-card';
+    card.dataset.id = sub.id;
+
+    card.innerHTML = `
+      <div class="rv-card-header">
+        <span class="rv-num">#${idx + 1}</span>
+        <span class="rv-dur" data-id="${sub.id}">${(sub.end - sub.start).toFixed(2)}s</span>
+      </div>
+      <div class="rv-editor" data-id="${sub.id}" contenteditable="true" spellcheck="true" data-placeholder="Subtitle text…">${sub.lines.map(l => safeHtml(l)).join('<br>')}</div>
+      <div class="rv-timing">
+        <div class="rv-time-row">
+          <span class="rv-time-label">Start</span>
+          <span class="rv-time-val" data-field="start" data-id="${sub.id}">${fmtDisp(sub.start)}</span>
+          <div class="rv-nudge-pair">
+            <button class="rv-nudge" data-field="start" data-delta="-0.1" data-id="${sub.id}">−0.1s</button>
+            <button class="rv-nudge" data-field="start" data-delta="0.1"  data-id="${sub.id}">+0.1s</button>
+          </div>
+          <button class="rv-setnow" data-setfield="start" data-id="${sub.id}">← Set Start to now</button>
+        </div>
+        <div class="rv-time-row">
+          <span class="rv-time-label">End</span>
+          <span class="rv-time-val" data-field="end" data-id="${sub.id}">${fmtDisp(sub.end)}</span>
+          <div class="rv-nudge-pair">
+            <button class="rv-nudge" data-field="end" data-delta="-0.1" data-id="${sub.id}">−0.1s</button>
+            <button class="rv-nudge" data-field="end" data-delta="0.1"  data-id="${sub.id}">+0.1s</button>
+          </div>
+          <button class="rv-setnow" data-setfield="end" data-id="${sub.id}">← Set End to now</button>
+        </div>
+      </div>
+      <div class="rv-actions">
+        <button class="rv-btn rv-play-btn" data-action="play"   data-id="${sub.id}">▶ Play from here</button>
+        <button class="rv-btn"             data-action="split"  data-id="${sub.id}">Split here</button>
+        <button class="rv-btn"             data-action="merge"  data-id="${sub.id}">Merge with next</button>
+        <button class="rv-btn"             data-action="add"    data-id="${sub.id}">Add line below</button>
+        <button class="rv-btn rv-danger"   data-action="delete" data-id="${sub.id}">Delete</button>
+      </div>`;
+
+    // ── Text editor ─────────────────────────────────
+    const ed = card.querySelector('.rv-editor');
+
+    function saveRvEditor() {
+      const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+      let raw = ed.innerHTML
+        .replace(/<strong>([\s\S]*?)<\/strong>/gi, '<b>$1</b>')
+        .replace(/<em>([\s\S]*?)<\/em>/gi, '<i>$1</i>')
+        .replace(/<br\s*\/?>/gi, '\n').replace(/<div>/gi, '\n').replace(/<\/div>/gi, '')
+        .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1')
+        .replace(/<(?!\/?[bi])[^>]*>/gi, '');
+      s.lines = raw.split('\n').map(l => l.trimEnd());
+      updateOverlay(video.currentTime);
+      triggerSave();
+    }
+
+    let rvUndoDebounce = null;
+    ed.addEventListener('input', () => {
+      clearTimeout(rvUndoDebounce);
+      rvUndoDebounce = setTimeout(saveUndo, 500);
+      saveRvEditor();
+    });
+    ed.addEventListener('keydown', e => {
+      if (e.key === 'Enter' && e.shiftKey) return;
+      if (e.key === 'Enter' && !e.shiftKey) { e.preventDefault(); return; }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'b') { e.preventDefault(); try { document.execCommand('bold');   } catch(err) {} saveRvEditor(); }
+      if ((e.ctrlKey || e.metaKey) && e.key === 'i') { e.preventDefault(); try { document.execCommand('italic'); } catch(err) {} saveRvEditor(); }
+    });
+    ed.addEventListener('paste', e => {
+      e.preventDefault();
+      const html = e.clipboardData.getData('text/html'), plain = e.clipboardData.getData('text/plain');
+      let text = plain;
+      if (html) {
+        const tmp = document.createElement('div'); tmp.innerHTML = html;
+        tmp.querySelectorAll('br').forEach(br => br.replaceWith('\n'));
+        tmp.querySelectorAll('p,div,li').forEach(el => { if (el.nextSibling) el.insertAdjacentText('afterend', '\n'); });
+        text = tmp.innerText || tmp.textContent;
+      }
+      document.execCommand('insertText', false, text);
+      saveRvEditor();
+    });
+
+    // ── Nudge buttons ────────────────────────────────
+    card.querySelectorAll('.rv-nudge').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+        saveUndo();
+        const field = btn.dataset.field, delta = parseFloat(btn.dataset.delta);
+        s[field] = parseFloat(Math.max(0, s[field] + delta).toFixed(3));
+        rvCascade(s, field); // clamps, cascades to neighbor, syncs all displays
+        refreshTimeline();
+        triggerSave();
+      });
+    });
+
+    // ── Set to now buttons ───────────────────────────
+    card.querySelectorAll('.rv-setnow').forEach(btn => {
+      btn.addEventListener('click', () => {
+        const s = subtitles.find(s => s.id === sub.id); if (!s) return;
+        saveUndo();
+        const field = btn.dataset.setfield;
+        s[field] = parseFloat(video.currentTime.toFixed(3));
+        rvCascade(s, field);
+        refreshTimeline();
+        showToast(field === 'start' ? 'Start set' : 'End set');
+        triggerSave();
+      });
+    });
+
+    // ── Action buttons ───────────────────────────────
+    card.querySelectorAll('[data-action]').forEach(btn => {
+      // Prevent Split from stealing focus out of the editor before the click fires
+      if (btn.dataset.action === 'split') {
+        btn.addEventListener('mousedown', e => { e.preventDefault(); });
+      }
+      btn.addEventListener('click', e => {
+        e.stopPropagation();
+        const id = parseInt(btn.dataset.id), action = btn.dataset.action;
+        const s = subtitles.find(s => s.id === id);
+        if (action === 'play') {
+          if (s) { video.currentTime = s.start; tickUI(); video.play(); }
+        } else if (action === 'split') {
+          // Compute cursor offset inside this card's editor (cursor retained via mousedown preventDefault)
+          let cursorOffset = 0;
+          try {
+            const sel = window.getSelection();
+            if (sel && sel.rangeCount > 0 && ed.contains(sel.getRangeAt(0).startContainer)) {
+              const range = sel.getRangeAt(0);
+              const preRange = document.createRange();
+              preRange.setStart(ed, 0);
+              preRange.setEnd(range.startContainer, range.startOffset);
+              cursorOffset = preRange.toString().length;
+            }
+          } catch(err) {}
+          splitSub(id, cursorOffset); // falls back to midpoint when cursorOffset === 0
+        } else if (action === 'merge')  { mergeSub(id);
+        } else if (action === 'add')    { if (s) addSub(s.end);
+        } else if (action === 'delete') { deleteSub(id);
+        }
+      });
+    });
+
+    listEl.appendChild(card);
+  });
+
+  // Reapply playing highlight after full rebuild
+  const t = video.currentTime;
+  const activeSub = subtitles.find(s => t >= s.start && t <= s.end);
+  if (activeSub) {
+    const activeCard = listEl.querySelector(`.rv-card[data-id="${activeSub.id}"]`);
+    if (activeCard) activeCard.classList.add('rv-playing');
+  }
+}
+
+function rvUpdateDur(card, sub) {
+  const el = card.querySelector('.rv-dur');
+  if (el) el.textContent = (sub.end - sub.start).toFixed(2) + 's';
+}
+
+function rvSyncCard(id, field, sub) {
+  const card = document.querySelector(`.rv-card[data-id="${id}"]`);
+  if (!card) return;
+  const valEl = card.querySelector(`.rv-time-val[data-field="${field}"]`);
+  if (valEl) valEl.textContent = fmtDisp(sub[field]);
+  rvUpdateDur(card, sub);
+}
+
+function rvCascade(sub, field) {
+  const sorted = [...subtitles].sort((a, b) => a.start - b.start);
+  const idx = sorted.findIndex(s => s.id === sub.id);
+
+  // Enforce minimum duration on current subtitle
+  if (field === 'end')   sub.end   = parseFloat(Math.max(sub.end,   sub.start + 0.1).toFixed(3));
+  if (field === 'start') sub.start = parseFloat(Math.min(sub.start, sub.end   - 0.1).toFixed(3));
+  sub.start = parseFloat(Math.max(0, sub.start).toFixed(3));
+
+  if (field === 'end' && idx < sorted.length - 1) {
+    const next = subtitles.find(s => s.id === sorted[idx + 1].id);
+    if (next) {
+      // Clamp: can't absorb the next subtitle entirely
+      sub.end   = parseFloat(Math.min(sub.end, next.end - 0.1).toFixed(3));
+      next.start = sub.end;
+      rvSyncCard(next.id, 'start', next);
+    }
+  } else if (field === 'start' && idx > 0) {
+    const prev = subtitles.find(s => s.id === sorted[idx - 1].id);
+    if (prev) {
+      // Clamp: can't absorb the previous subtitle entirely
+      sub.start = parseFloat(Math.max(sub.start, prev.start + 0.1).toFixed(3));
+      prev.end  = sub.start;
+      rvSyncCard(prev.id, 'end', prev);
+    }
+  }
+
+  // Always sync current card (post-clamp value)
+  rvSyncCard(sub.id, field, sub);
+}
+
+function rvAutoScroll(id) {
+  if (!reviewMode || !reviewListWrap) return;
+  const listEl = document.getElementById('reviewList');
+  if (!listEl) return;
+  const card = listEl.querySelector(`.rv-card[data-id="${id}"]`);
+  if (!card) return;
+  // Respect manual-scroll pause
+  if (Date.now() - rvLastManualScroll < RV_SCROLL_PAUSE_MS) return;
+  const wrapRect = reviewListWrap.getBoundingClientRect();
+  const cardRect = card.getBoundingClientRect();
+  const cardRelTop = cardRect.top - wrapRect.top;
+  const cardRelBot = cardRelTop + card.offsetHeight;
+  const wrapH = reviewListWrap.clientHeight;
+  if (cardRelTop < 0 || cardRelBot > wrapH) {
+    const target = reviewListWrap.scrollTop + cardRelTop - wrapH / 2 + card.offsetHeight / 2;
+    rvProgrammaticScroll = true;
+    reviewListWrap.scrollTo({ top: Math.max(0, target), behavior: 'smooth' });
+    setTimeout(() => { rvProgrammaticScroll = false; }, 600);
+  }
+}
+
+// Review transport controls
+document.getElementById('rvPlayBtn').addEventListener('click', togglePlay);
+document.getElementById('rvProgress').addEventListener('input', e => {
+  if (video.duration) { video.currentTime = (parseFloat(e.target.value) / 100) * video.duration; tickUI(); }
+});
 </script>
 </body>
 </html>
