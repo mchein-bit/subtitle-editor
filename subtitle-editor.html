@@ -309,6 +309,13 @@ body.review-mode .bin-resizer{display:none!important}
 body.review-mode .bottom{display:none!important}
 #reviewPanel{display:none}
 body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-height:0;overflow:hidden}
+/* Hide Editor Mode's SRT / VTT export buttons while reviewing — reviewers
+   get the single "Download for review" (.docx) button in the review transport
+   instead. Also hides the divider that immediately follows so we don't leave
+   an orphaned separator floating in the menubar. */
+body.review-mode #exportSrtBtn,
+body.review-mode #exportVttBtn,
+body.review-mode #exportVttBtn + .menu-sep{display:none!important}
 
 /* ── REVIEW TRANSPORT ────────────────────────────────── */
 #reviewTransport{height:56px;background:var(--panel);border-bottom:1px solid var(--border);display:flex;align-items:center;padding:0 20px;gap:16px;flex-shrink:0}
@@ -316,8 +323,6 @@ body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-heig
 #rvPlayBtn:hover{background:var(--accent-g)}
 #rvTimeDisplay{font-family:var(--mono);font-size:12px;color:var(--text3);white-space:nowrap;flex-shrink:0;min-width:170px}
 #rvTimeDisplay span{color:var(--text)}
-#rvProgressWrap{flex:1;min-width:0;display:flex;align-items:center}
-#rvProgress{width:100%;accent-color:var(--accent);cursor:pointer;height:4px}
 
 /* ── REVIEW LIST CONTAINER ───────────────────────────── */
 #reviewListWrap{flex:1;min-height:0;overflow-y:auto;padding:16px 24px 40px;background:var(--bg)}
@@ -328,6 +333,10 @@ body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-heig
 /* ── REVIEW CARD ─────────────────────────────────────── */
 .rv-card{background:var(--panel);border:1px solid var(--border);border-left:3px solid transparent;border-radius:8px;padding:18px 20px;margin-bottom:12px;transition:border-color .15s,background .15s}
 .rv-card.rv-playing{border-left-color:var(--accent);background:rgba(77,159,255,.05)}
+/* Stable "you picked this one" highlight — set by marker click / box-select.
+   Distinct color from .rv-playing so "selected" vs "under playhead" are readable at a glance.
+   Declared after .rv-playing so it wins the border-left-color when both are set. */
+.rv-card.rv-selected{border-left-color:var(--yellow);background:rgba(245,197,66,.06)}
 .rv-card-header{display:flex;align-items:center;gap:10px;margin-bottom:12px}
 .rv-num{font-family:var(--mono);font-size:11px;color:var(--text3);background:var(--panel3);border:1px solid var(--border);border-radius:4px;padding:2px 9px;flex-shrink:0}
 .rv-dur{font-family:var(--mono);font-size:11px;color:var(--text3)}
@@ -358,6 +367,83 @@ body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-heig
 .rv-btn.rv-play-btn:hover{background:var(--accent);border-color:var(--accent);color:#fff}
 .rv-btn.rv-danger{border-color:rgba(224,82,82,.4);color:var(--red);background:rgba(224,82,82,.05)}
 .rv-btn.rv-danger:hover{background:rgba(224,82,82,.15);border-color:var(--red)}
+
+/* ── REVIEW MODE SCRUBBER TIMELINE (Stage 1) ── */
+#rvTimelineWrap{padding:14px 24px 12px;background:var(--panel);border-bottom:1px solid var(--border);flex-shrink:0}
+#rvTimeline{position:relative;height:34px;background:var(--panel3);border:1px solid var(--border);border-radius:18px;user-select:none}
+#rvTLTrack{position:absolute;inset:0;border-radius:18px}
+.rv-tl-marker{position:absolute;top:5px;height:22px;background:rgba(77,159,255,.55);border:1px solid rgba(77,159,255,.85);border-radius:11px;cursor:grab;min-width:2px;transition:background .1s,box-shadow .12s,border-color .1s;box-sizing:border-box}
+.rv-tl-marker:hover{background:rgba(77,159,255,.8)}
+.rv-tl-marker.selected{background:var(--accent);border-color:#fff;box-shadow:0 0 0 2px rgba(255,255,255,.2)}
+.rv-tl-marker.playing{background:var(--accent);border-color:#fff}
+.rv-tl-marker.rippling{background:var(--yellow);border-color:#fff;box-shadow:0 0 0 3px rgba(245,197,66,.4);cursor:grabbing;z-index:6}
+.rv-tl-marker.rippling-downstream{background:rgba(245,197,66,.55);border-color:rgba(245,197,66,.9);box-shadow:0 0 0 2px rgba(245,197,66,.28);animation:rvRipplePulse .9s ease-in-out infinite}
+@keyframes rvRipplePulse{0%,100%{transform:translateY(0)}50%{transform:translateY(-2px)}}
+.rv-tl-marker.isolating{background:#a06dff;border-color:#fff;box-shadow:0 0 0 3px rgba(160,109,255,.4);cursor:grabbing;z-index:6}
+.rv-tl-marker.resizing{background:#4d9fff;border-color:#fff;box-shadow:0 0 0 3px rgba(77,159,255,.4);z-index:6}
+.rv-tl-resize{position:absolute;top:-2px;bottom:-2px;width:8px;cursor:ew-resize;z-index:3}
+.rv-tl-resize-l{left:0}
+.rv-tl-resize-r{right:0}
+.rv-tl-marker .rv-tl-resize::after{content:'';position:absolute;top:50%;left:50%;transform:translate(-50%,-50%);width:2px;height:14px;background:rgba(255,255,255,.5);border-radius:1px;opacity:0;transition:opacity .12s;pointer-events:none}
+.rv-tl-marker:hover .rv-tl-resize::after{opacity:1}
+.rv-tl-label{position:absolute;top:0;bottom:0;left:9px;right:9px;line-height:20px;font-size:10px;color:#fff;overflow:hidden;white-space:nowrap;text-overflow:ellipsis;pointer-events:none;font-weight:500;text-align:center;letter-spacing:.2px}
+#rvTLPlayhead{position:absolute;top:-6px;bottom:-6px;width:2px;background:var(--red);pointer-events:none;z-index:20}
+#rvTLPlayhead::before{content:'';position:absolute;top:-5px;left:-5px;width:12px;height:12px;border-radius:50%;background:var(--red);border:2px solid var(--panel)}
+/* Wide transparent hit-area that owns mousedown even when overlapping a marker.
+   Child of #rvTLPlayhead — re-enables pointer events (parent has pointer-events:none). */
+#rvTLPlayheadHit{position:absolute;top:0;bottom:0;left:-7px;width:16px;background:transparent;pointer-events:auto;cursor:ew-resize;z-index:1}
+#rvTLBox{position:absolute;top:2px;bottom:2px;background:rgba(77,159,255,.15);border:1px solid var(--accent);border-radius:4px;pointer-events:none;z-index:5}
+#rvTLHint{font-size:11px;color:var(--text3);margin-top:9px;line-height:1.55}
+#rvTLHint b{color:var(--text2);font-weight:600}
+#rvTLHint kbd{background:var(--panel3);border:1px solid var(--border);border-radius:3px;padding:1px 5px;font-family:var(--mono);font-size:10px;color:var(--text2)}
+/* ── REVIEW MODE ZOOM + SCROLL ─────────────────────
+   #rvTLScroll = horizontal scroll container (native scrollbar at bottom).
+   #rvTLInner  = zoomable inner; JS sets its width to (rvZoomLevel*100)%.
+   Padding-top 6px = room for playhead's -6px knob extension.
+   Padding-bottom 12px = 6px for playhead's -6 tail + 6px for scrollbar. */
+#rvTLScroll{position:relative;overflow-x:auto;overflow-y:hidden;padding:6px 0 12px 0;user-select:none}
+#rvTLScroll::-webkit-scrollbar{height:6px}
+#rvTLScroll::-webkit-scrollbar-thumb{background:var(--border2);border-radius:3px}
+#rvTLScroll::-webkit-scrollbar-track{background:transparent}
+#rvTLInner{position:relative;width:100%;min-width:100%;height:34px}
+/* Zoom controls */
+#rvZoomBar{display:flex;align-items:center;gap:8px;margin-top:10px}
+#rvZoomBarLabel{color:var(--text3);font-family:var(--mono);font-size:10px;letter-spacing:.5px;font-weight:600;flex-shrink:0}
+#rvZoomBar button{width:26px;height:26px;padding:0;border:1px solid var(--border);background:var(--panel3);color:var(--text2);border-radius:var(--r);cursor:pointer;font-size:16px;line-height:1;transition:all .12s;display:flex;align-items:center;justify-content:center;flex-shrink:0}
+#rvZoomBar button:hover{border-color:var(--accent);color:var(--accent)}
+#rvZoomSlider{flex:1;max-width:260px;accent-color:var(--accent);cursor:pointer}
+#rvZoomLabel{font-family:var(--mono);color:var(--text2);min-width:44px;text-align:right;font-size:11px;flex-shrink:0}
+
+/* ── REVIEW MODE COMMENTS + HELP (Stage 3) ── */
+.rv-comment-btn{font-family:var(--ui);font-size:12px;font-weight:500;padding:7px 16px;border-radius:var(--r);border:1px solid var(--border);background:var(--panel3);color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap}
+.rv-comment-btn:hover{border-color:var(--accent);color:var(--accent);background:var(--panel2)}
+.rv-comment-btn.has-comments{border-color:rgba(77,159,255,.55);color:var(--accent);background:rgba(77,159,255,.06)}
+.rv-comments{display:none;margin-top:14px;padding:14px 16px;background:rgba(0,0,0,.22);border-radius:var(--r);border:1px solid var(--border)}
+.rv-comments.open{display:block}
+#rvAddAtPlayheadBtn{flex-shrink:0;font-family:var(--ui);font-size:13px;font-weight:500;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--panel3);color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap}
+#rvAddAtPlayheadBtn:hover{border-color:var(--accent);color:var(--accent);background:var(--panel2)}
+#rvDownloadDocxBtn{flex-shrink:0;font-family:var(--ui);font-size:13px;font-weight:500;padding:7px 14px;border-radius:var(--r);border:1px solid var(--border);background:var(--panel3);color:var(--text2);cursor:pointer;transition:all .12s;white-space:nowrap}
+#rvDownloadDocxBtn:hover{border-color:var(--green);color:var(--green);background:var(--panel2)}
+#rvDownloadDocxBtn:disabled{opacity:.5;cursor:default;color:var(--text3)}
+#rvHelpBtn{flex-shrink:0;width:32px;height:32px;border-radius:50%;background:var(--panel3);border:1px solid var(--border);color:var(--text2);font-size:16px;font-weight:600;cursor:pointer;transition:all .12s;display:flex;align-items:center;justify-content:center}
+#rvHelpBtn:hover{border-color:var(--accent);color:var(--accent);background:var(--panel2)}
+/* Friendly full-screen help overlay for Review Mode */
+#rvHelpOverlay{display:none;position:fixed;inset:0;background:rgba(0,0,0,.75);z-index:3600;align-items:center;justify-content:center;padding:24px}
+#rvHelpOverlay.visible{display:flex}
+.rv-help-modal{background:#1a1a1a;border:1px solid var(--border2);border-radius:10px;padding:28px 32px;width:640px;max-width:96vw;max-height:88vh;overflow-y:auto;display:flex;flex-direction:column;gap:18px}
+.rv-help-modal::-webkit-scrollbar{width:8px}
+.rv-help-modal::-webkit-scrollbar-thumb{background:var(--border);border-radius:4px}
+.rv-help-hdr{display:flex;align-items:center;justify-content:space-between;padding-bottom:6px;border-bottom:1px solid var(--border);flex-shrink:0}
+.rv-help-title{font-family:var(--ui);font-size:20px;font-weight:600;color:var(--text)}
+.rv-help-subtitle{font-size:13px;color:var(--text3);margin-top:2px}
+.rv-help-close{background:none;border:none;color:var(--text3);font-size:24px;cursor:pointer;padding:0 4px;line-height:1;transition:color .1s}
+.rv-help-close:hover{color:var(--text)}
+.rv-help-section{display:flex;flex-direction:column;gap:6px}
+.rv-help-section h3{font-family:var(--ui);font-size:15px;font-weight:600;color:var(--accent);margin:0 0 4px 0}
+.rv-help-section p,.rv-help-section li{font-size:14px;line-height:1.6;color:var(--text2);margin:0}
+.rv-help-section ul{margin:0;padding-left:22px;display:flex;flex-direction:column;gap:5px}
+.rv-help-section b{color:var(--text);font-weight:600}
+.rv-help-section kbd{background:var(--panel3);border:1px solid var(--border);border-radius:3px;padding:1px 6px;font-family:var(--mono);font-size:11px;color:var(--text)}
 
 /* ── MONITOR RESIZE HANDLE ── */
 #monitorResizeHandle{height:5px;flex-shrink:0;cursor:ns-resize;background:transparent;transition:background .15s;position:relative;z-index:50}
@@ -633,8 +719,33 @@ body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-heig
     <div id="reviewTransport">
       <button id="rvPlayBtn">▶ Play</button>
       <div id="rvTimeDisplay"><span>0:00:00.00</span> / 0:00:00</div>
-      <div id="rvProgressWrap">
-        <input type="range" id="rvProgress" min="0" max="100" step="0.01" value="0">
+      <button id="rvAddAtPlayheadBtn" title="Insert a new empty subtitle starting at the playhead">+ Add subtitle here</button>
+      <button id="rvDownloadDocxBtn" title="Export a .docx for reviewers to compare and mark up" style="margin-left:auto">↓ Download for review</button>
+      <button id="rvHelpBtn" title="How to use Review Mode">?</button>
+    </div>
+    <!-- Review-mode scrubber timeline (Stage 1) + zoom (Stage 5) -->
+    <div id="rvTimelineWrap">
+      <div id="rvTLScroll">
+        <div id="rvTLInner">
+          <div id="rvTimeline">
+            <div id="rvTLTrack"></div>
+            <div id="rvTLPlayhead" style="left:0"><div id="rvTLPlayheadHit" title="Drag to scrub"></div></div>
+          </div>
+        </div>
+      </div>
+      <div id="rvZoomBar">
+        <span id="rvZoomBarLabel">ZOOM</span>
+        <button id="rvZoomOut" title="Zoom out">−</button>
+        <input type="range" id="rvZoomSlider" min="1" max="50" step="0.25" value="1">
+        <button id="rvZoomIn" title="Zoom in">+</button>
+        <span id="rvZoomLabel">1×</span>
+      </div>
+      <div id="rvTLHint">
+        <b>Drag</b> a subtitle to slide the whole timeline together.
+        <b>Drag an edge</b> to change a boundary — pushes the neighbor once you touch it.
+        <b>Shift-drag</b> anywhere to leave neighbors alone.
+        <b>Click empty space</b> to jump the playhead. <b>Drag empty space</b> to select multiple.
+        Zoom in to fine-tune; the timeline scrolls when zoomed past its width.
       </div>
     </div>
     <div id="reviewListWrap">
@@ -713,6 +824,78 @@ body.review-mode #reviewPanel{display:flex;flex-direction:column;flex:1;min-heig
       <div class="sc-row"><span class="sc-desc">Box-select (timeline)</span><span class="sc-keys">Drag empty lane</span></div>
       <div class="sc-row"><span class="sc-desc">Add to group</span><span class="sc-keys"><kbd>⇧</kbd>+click</span></div>
       <div class="sc-row"><span class="sc-desc">Push resize</span><span class="sc-keys"><kbd>⇧</kbd>+drag edge</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ── REVIEW-MODE FRIENDLY HELP OVERLAY (Stage 3) ── -->
+<div id="rvHelpOverlay">
+  <div class="rv-help-modal">
+    <div class="rv-help-hdr">
+      <div>
+        <div class="rv-help-title">How to review subtitles</div>
+        <div class="rv-help-subtitle">Everything here saves automatically as you go.</div>
+      </div>
+      <button class="rv-help-close" id="rvHelpClose" title="Close">×</button>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>The timeline strip at the top</h3>
+      <ul>
+        <li><b>Drag any subtitle</b> to slide the whole timeline together — everything moves the same amount, so the shape stays intact.</li>
+        <li><b>Drag the left or right edge</b> of a subtitle to change its length. If there's empty space next to it, the edge moves into that space. Once it touches the neighbor, they stay locked together and dragging further shortens the neighbor.</li>
+        <li><b>Hold <kbd>Shift</kbd></b> while dragging (either the body or an edge) to move <b>only that one</b> subtitle — neighbors won't move, and gaps or overlaps are allowed.</li>
+        <li><b>Click empty space</b> on the timeline to jump the playhead there.</li>
+        <li><b>Drag empty space</b> to select several subtitles at once (you'll see a blue box). Then drag any one of them to move the whole group together.</li>
+      </ul>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>Playing the video</h3>
+      <ul>
+        <li>Press <b>▶ Play</b> at the top or hit <kbd>Space</kbd> to play/pause.</li>
+        <li>Click <b>▶ Play this line</b> on any subtitle to jump to its start and play from there.</li>
+      </ul>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>Adjusting timing on one subtitle</h3>
+      <ul>
+        <li><b>Set Start / Set End</b> — snaps the value to wherever the video is right now.</li>
+        <li><b>−0.1s / +0.1s</b> — nudges the value by one-tenth of a second at a time, for fine tuning.</li>
+      </ul>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>Editing the text</h3>
+      <ul>
+        <li>Click into any subtitle's text box and type. Changes save automatically.</li>
+        <li>Highlight some text and <b>right-click</b> to make it <b>Bold</b> or <i>Italic</i>.</li>
+        <li>Press <kbd>Shift</kbd>+<kbd>Enter</kbd> to add a line break inside a subtitle.</li>
+      </ul>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>Adding, removing, splitting, and merging</h3>
+      <ul>
+        <li><b>Split here</b> — cuts a subtitle in two at wherever your text cursor is.</li>
+        <li><b>Merge with next</b> — combines this subtitle with the one after it.</li>
+        <li><b>Add line below</b> — inserts a new empty subtitle after this one.</li>
+        <li><b>Delete</b> — removes this subtitle.</li>
+        <li>Made a mistake? Press <kbd>Ctrl</kbd>+<kbd>Z</kbd> (or <kbd>⌘</kbd>+<kbd>Z</kbd> on Mac) to undo. This works for every change.</li>
+      </ul>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>Leaving notes</h3>
+      <ul>
+        <li>Click <b>💬 Notes</b> on any subtitle to write a comment about it. Anyone else sharing this project will see your notes.</li>
+      </ul>
+    </div>
+
+    <div class="rv-help-section">
+      <h3>Saving</h3>
+      <p>There's no Save button — every edit is written to the cloud automatically. You can close the tab whenever you're done.</p>
     </div>
   </div>
 </div>
@@ -937,10 +1120,34 @@ function tickUI() {
     }
   }
   if (reviewMode) {
-    const rvProg = document.getElementById('rvProgress');
-    if (rvProg) rvProg.value = p;
     const rvTime = document.getElementById('rvTimeDisplay');
     if (rvTime) rvTime.innerHTML = `<span>${fmtFull(t)}</span> / ${fmtFull(d)}`;
+    const rvPh = document.getElementById('rvTLPlayhead');
+    if (rvPh) rvPh.style.left = p + '%';
+    // Highlight the marker whose range currently contains the playhead
+    const activeSub = subtitles.find(s => t >= s.start && t <= s.end);
+    document.querySelectorAll('.rv-tl-marker').forEach(m => m.classList.toggle('playing', activeSub && m.dataset.id == activeSub.id));
+
+    // Page-turn auto-scroll: during playback only, when the playhead crosses
+    // the right edge of the visible zoomed window, jump scrollLeft so the
+    // playhead lands ~10% from the left of the viewport, revealing a fresh
+    // window of markers. Forward-only — will NOT snap back if the reviewer
+    // manually scrolls ahead of the playhead, and no-op at 1× (no scroll).
+    if (!video.paused && d) {
+      const rvScroll = document.getElementById('rvTLScroll');
+      const rvInner  = document.getElementById('rvTLInner');
+      if (rvScroll && rvInner) {
+        const innerW = rvInner.offsetWidth;
+        const viewW  = rvScroll.clientWidth;
+        if (innerW > viewW) {
+          const headX = (p / 100) * innerW;
+          const sl    = rvScroll.scrollLeft;
+          if (headX > sl + viewW - 4) {
+            rvScroll.scrollLeft = Math.max(0, Math.min(innerW - viewW, headX - viewW * 0.1));
+          }
+        }
+      }
+    }
   }
 }
 
@@ -1721,7 +1928,11 @@ function renderList() {
 }
 
 function updateDurBadge(row, sub) { const b = row.querySelector('.dur-badge'); if (b) b.textContent = (sub.end - sub.start).toFixed(2) + 's'; }
-function refreshTimeline() { if (!reviewMode) renderTimeline(); }
+// Always re-renders whichever timeline is active for the current mode.
+// Any handler that calls refreshTimeline() will keep the visible timeline
+// in sync — no matter which mode we're in. Do NOT let this become a no-op
+// in either branch.
+function refreshTimeline() { if (reviewMode) renderRvTimeline(); else renderTimeline(); }
 
 // Close sub-millisecond floating-point gaps between adjacent subtitles
 function closeSubGaps() {
@@ -2640,6 +2851,179 @@ document.getElementById('exportVttBtn').onclick = () => {
   dl(['WEBVTT', '', ...s.map(s => `${fmtVTT(s.start)} --> ${fmtVTT(s.end)}\n${s.lines.join('\n')}`)].join('\n\n'), name + '.vtt', 'text/vtt');
 };
 
+// ── DOCX EXPORT (Review Mode — Stage 4) ──────────────
+// Produces a true OOXML .docx by hand-building the required XML files and
+// packaging them via JSZip (lazy-loaded from CDN on first click; never
+// fetched if the user never clicks Download).
+
+let _jszipLoader = null;
+function loadJSZip() {
+  if (window.JSZip) return Promise.resolve(window.JSZip);
+  if (_jszipLoader) return _jszipLoader;
+  _jszipLoader = new Promise((resolve, reject) => {
+    const s = document.createElement('script');
+    s.src = 'https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js';
+    s.onload = () => resolve(window.JSZip);
+    s.onerror = () => { _jszipLoader = null; reject(new Error('Could not load JSZip')); };
+    document.head.appendChild(s);
+  });
+  return _jszipLoader;
+}
+
+function escXml(s) {
+  return String(s == null ? '' : s)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;');
+}
+
+// Parse a subtitle line's inline formatting (<b>, <strong>, <i>, <em>) into
+// a flat list of runs. Unknown/broken tags fall through as literal text.
+function docxLineToRuns(line) {
+  const runs = [];
+  let bold = false, italic = false, buf = '';
+  const push = () => { if (buf) { runs.push({ text: buf, bold, italic }); buf = ''; } };
+  let i = 0;
+  while (i < line.length) {
+    const rest = line.slice(i);
+    if (rest.startsWith('<b>'))       { push(); bold   = true;  i += 3; continue; }
+    if (rest.startsWith('</b>'))      { push(); bold   = false; i += 4; continue; }
+    if (rest.startsWith('<strong>'))  { push(); bold   = true;  i += 8; continue; }
+    if (rest.startsWith('</strong>')) { push(); bold   = false; i += 9; continue; }
+    if (rest.startsWith('<i>'))       { push(); italic = true;  i += 3; continue; }
+    if (rest.startsWith('</i>'))      { push(); italic = false; i += 4; continue; }
+    if (rest.startsWith('<em>'))      { push(); italic = true;  i += 4; continue; }
+    if (rest.startsWith('</em>'))     { push(); italic = false; i += 5; continue; }
+    buf += line[i]; i++;
+  }
+  push();
+  return runs;
+}
+
+function docxRunsXml(runs, sizeHalfPt) {
+  const sz = sizeHalfPt || 24; // 12pt in half-points
+  if (!runs.length) {
+    // Empty line — emit a run with an empty text so the paragraph still renders
+    return `<w:r><w:rPr><w:sz w:val="${sz}"/></w:rPr><w:t xml:space="preserve"></w:t></w:r>`;
+  }
+  return runs.map(r => {
+    const rPr = `<w:rPr>${r.bold ? '<w:b/>' : ''}${r.italic ? '<w:i/>' : ''}<w:sz w:val="${sz}"/></w:rPr>`;
+    return `<w:r>${rPr}<w:t xml:space="preserve">${escXml(r.text)}</w:t></w:r>`;
+  }).join('');
+}
+
+function docxPara(inner, opts) {
+  const o = opts || {};
+  const spacing = `<w:spacing w:before="${o.before != null ? o.before : 0}" w:after="${o.after != null ? o.after : 120}"/>`;
+  const ind     = o.indent ? `<w:ind w:left="${o.indent}"/>` : '';
+  return `<w:p><w:pPr>${spacing}${ind}</w:pPr>${inner}</w:p>`;
+}
+
+function buildDocxDocumentXml(projectName, sortedSubs, commentsMap) {
+  const parts = [];
+
+  // Title
+  parts.push(docxPara(
+    `<w:r><w:rPr><w:b/><w:sz w:val="40"/></w:rPr><w:t xml:space="preserve">${escXml(projectName || 'Subtitle review')}</w:t></w:r>`,
+    { before: 0, after: 120 }
+  ));
+
+  // Subheading — subtitle count + export timestamp
+  const now = new Date();
+  const stamp = now.toLocaleString();
+  parts.push(docxPara(
+    `<w:r><w:rPr><w:i/><w:color w:val="666666"/><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(sortedSubs.length + ' subtitle' + (sortedSubs.length === 1 ? '' : 's') + ' · exported ' + stamp)}</w:t></w:r>`,
+    { before: 0, after: 360 }
+  ));
+
+  sortedSubs.forEach((sub, idx) => {
+    // Header: bold number + monospaced timecode range
+    const numRun = `<w:r><w:rPr><w:b/><w:sz w:val="26"/></w:rPr><w:t xml:space="preserve">${idx + 1}   </w:t></w:r>`;
+    const tcRun  = `<w:r><w:rPr><w:rFonts w:ascii="Courier New" w:hAnsi="Courier New" w:cs="Courier New"/><w:sz w:val="20"/><w:color w:val="666666"/></w:rPr><w:t xml:space="preserve">${escXml(fmtDisp(sub.start) + ' → ' + fmtDisp(sub.end))}</w:t></w:r>`;
+    parts.push(docxPara(numRun + tcRun, { before: 300, after: 60 }));
+
+    // One paragraph per stored line so hard breaks are preserved
+    (sub.lines && sub.lines.length ? sub.lines : ['']).forEach(line => {
+      parts.push(docxPara(docxRunsXml(docxLineToRuns(line), 24), { before: 0, after: 60 }));
+    });
+
+    // Comments (if any)
+    const comments = (sub.supabaseId && commentsMap[sub.supabaseId]) || [];
+    if (comments.length) {
+      parts.push(docxPara(
+        `<w:r><w:rPr><w:b/><w:i/><w:sz w:val="20"/><w:color w:val="4d9fff"/></w:rPr><w:t xml:space="preserve">Comments:</w:t></w:r>`,
+        { before: 80, after: 40, indent: 360 }
+      ));
+      comments.forEach(c => {
+        const authorRun = `<w:r><w:rPr><w:b/><w:sz w:val="20"/><w:color w:val="4d9fff"/></w:rPr><w:t xml:space="preserve">${escXml((c.author_email || 'Reviewer') + ' — ')}</w:t></w:r>`;
+        const bodyRun   = `<w:r><w:rPr><w:sz w:val="20"/></w:rPr><w:t xml:space="preserve">${escXml(c.body || '')}</w:t></w:r>`;
+        parts.push(docxPara(authorRun + bodyRun, { before: 0, after: 40, indent: 360 }));
+      });
+    }
+  });
+
+  return `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<w:document xmlns:w="http://schemas.openxmlformats.org/wordprocessingml/2006/main">
+<w:body>
+${parts.join('\n')}
+<w:sectPr><w:pgSz w:w="12240" w:h="15840"/><w:pgMar w:top="1440" w:right="1440" w:bottom="1440" w:left="1440"/></w:sectPr>
+</w:body>
+</w:document>`;
+}
+
+const DOCX_CONTENT_TYPES_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Types xmlns="http://schemas.openxmlformats.org/package/2006/content-types">
+<Default Extension="rels" ContentType="application/vnd.openxmlformats-package.relationships+xml"/>
+<Default Extension="xml" ContentType="application/xml"/>
+<Override PartName="/word/document.xml" ContentType="application/vnd.openxmlformats-officedocument.wordprocessingml.document.main+xml"/>
+</Types>`;
+
+const DOCX_ROOT_RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships">
+<Relationship Id="rId1" Type="http://schemas.openxmlformats.org/officeDocument/2006/relationships/officeDocument" Target="word/document.xml"/>
+</Relationships>`;
+
+const DOCX_DOC_RELS_XML = `<?xml version="1.0" encoding="UTF-8" standalone="yes"?>
+<Relationships xmlns="http://schemas.openxmlformats.org/package/2006/relationships"/>`;
+
+async function downloadReviewDocx() {
+  const btn = document.getElementById('rvDownloadDocxBtn');
+  const sortedSubs = [...subtitles].sort((a, b) => a.start - b.start);
+  if (!sortedSubs.length) { showToast('Nothing to export'); return; }
+  btn.disabled = true;
+  const originalLabel = btn.textContent;
+  btn.textContent = '… preparing';
+  try {
+    const JSZip = await loadJSZip();
+    const zip = new JSZip();
+    const projName = (document.getElementById('filenameInput').value.trim()
+                      || (activeProjectId !== null && projects.find(p => p.id === activeProjectId)?.name)
+                      || 'Subtitle review').replace(/\.(srt|vtt|docx)$/i, '');
+    const docXml = buildDocxDocumentXml(projName, sortedSubs, subtitleComments);
+    zip.file('[Content_Types].xml',            DOCX_CONTENT_TYPES_XML);
+    zip.file('_rels/.rels',                    DOCX_ROOT_RELS_XML);
+    zip.file('word/_rels/document.xml.rels',   DOCX_DOC_RELS_XML);
+    zip.file('word/document.xml',              docXml);
+    const blob = await zip.generateAsync({ type: 'blob', mimeType: 'application/vnd.openxmlformats-officedocument.wordprocessingml.document' });
+    const filename = (projName.replace(/[^\w\s.-]/g, '').trim() || 'subtitles') + '-review.docx';
+    const a = document.createElement('a');
+    a.href = URL.createObjectURL(blob);
+    a.download = filename;
+    a.click();
+    setTimeout(() => URL.revokeObjectURL(a.href), 5000);
+    showToast('Downloaded ' + filename);
+  } catch (err) {
+    console.error(err);
+    showToast('Export failed — ' + (err.message || 'unknown error'));
+  } finally {
+    btn.disabled = false;
+    btn.textContent = originalLabel;
+  }
+}
+
+document.getElementById('rvDownloadDocxBtn').addEventListener('click', downloadReviewDocx);
+
 // ── HELPERS ────────────────────────────────────────
 function pad(n) { return String(Math.floor(n)).padStart(2, '0'); }
 function padMs(n) { return String(n).padStart(3, '0'); }
@@ -2674,7 +3058,7 @@ function showToast(msg, cls='') {
   clearTimeout(toastTimer); toastTimer = setTimeout(() => t.className = 'toast', 2200);
 }
 function refreshAll() {
-  if (reviewMode) { renderReviewList(); } else { renderList(); renderTimeline(); drawWaveform(); }
+  if (reviewMode) { renderReviewList(); renderRvTimeline(); } else { renderList(); renderTimeline(); drawWaveform(); }
 }
 
 // ── WAVEFORM ──────────────────────────────────────
@@ -2854,12 +3238,355 @@ function toggleReviewMode() {
   document.body.classList.toggle('review-mode', reviewMode);
   document.getElementById('reviewModeBtn').textContent = reviewMode ? '← Editor Mode' : '⊞ Review Mode';
   if (reviewMode) {
-    renderReviewList();
+    renderReviewList(); renderRvTimeline();
   } else {
     renderList(); renderTimeline(); drawWaveform();
   }
 }
 document.getElementById('reviewModeBtn').addEventListener('click', toggleReviewMode);
+
+// ── REVIEW-MODE SCRUBBER TIMELINE (Stage 1) ─────────
+// Beginner-friendly horizontal scrubber sitting above the review list.
+// Draws one pill-shaped marker per subtitle, positioned by start/duration.
+// Reuses saveUndo/closeSubGaps/refreshAll — does not touch Editor Mode.
+//
+// Drag semantics:
+//   • plain drag on a marker      → RIPPLE (this + everything downstream)
+//   • Shift + drag on a marker    → ISOLATE (only that one)
+//   • drag on a selected marker   → group move (only the selected set)
+//   • drag on empty track         → box-select (repopulates selectedIds)
+//   • plain click on empty track  → seek + clear selection
+//
+// One saveUndo() per drag = one Ctrl+Z undoes the entire ripple.
+function renderRvTimeline() {
+  const track = document.getElementById('rvTLTrack');
+  if (!track) return;
+  const dur = video.duration || 100;
+  track.innerHTML = '';
+  const sorted = [...subtitles].filter(s => s.end > s.start).sort((a, b) => a.start - b.start);
+  sorted.forEach(sub => {
+    const m = document.createElement('div');
+    m.className = 'rv-tl-marker' + (selectedIds.has(sub.id) ? ' selected' : '');
+    m.dataset.id = sub.id;
+    m.style.left  = (sub.start / dur * 100) + '%';
+    // Width reflects TRUE duration — no fake JS floor. CSS min-width:2px
+    // stops sub-pixel widths from vanishing entirely, without inflating short
+    // subs enough to visually collide with their neighbors.
+    m.style.width = ((sub.end - sub.start) / dur * 100) + '%';
+    m.title = `#${sorted.indexOf(sub) + 1}  ${fmtDisp(sub.start)} → ${fmtDisp(sub.end)}\n${sub.lines.join(' / ')}`;
+    // First 3 words of subtitle text so reviewers can identify markers at a glance
+    const words = (sub.lines.join(' ').match(/\S+/g) || []).slice(0, 3).join(' ');
+    m.innerHTML = `<div class="rv-tl-resize rv-tl-resize-l" data-edge="start"></div><div class="rv-tl-label">${esc(words)}</div><div class="rv-tl-resize rv-tl-resize-r" data-edge="end"></div>`;
+    // Body mousedown → whole-marker drag (rigid / group / isolate).
+    // Edge mousedowns handle themselves & stopPropagation so this won't fire on them.
+    m.addEventListener('mousedown', ev => {
+      if (ev.target.classList.contains('rv-tl-resize')) return;
+      rvMarkerMouseDown(sub, ev);
+    });
+    m.querySelectorAll('.rv-tl-resize').forEach(h => {
+      h.addEventListener('mousedown', ev => rvEdgeMouseDown(sub, h.dataset.edge, ev));
+    });
+    track.appendChild(m);
+  });
+}
+
+// ── REVIEW-MODE ZOOM (playhead-stable, native scroll) ─────
+// Mirrors Editor Mode's applyZoom pattern: snapshot the playhead's pixel
+// offset relative to the viewport, apply the new inner width, then set
+// scrollLeft so the playhead lands at the exact same viewport position.
+// Marker geometry (left/width as %) and drag math (via getBoundingClientRect)
+// scale automatically, so no other code needs changes.
+let rvZoomLevel = 1;
+function rvApplyZoom(newZoom) {
+  const inner  = document.getElementById('rvTLInner');
+  const scroll = document.getElementById('rvTLScroll');
+  if (!inner || !scroll) return;
+  newZoom = Math.max(1, Math.min(50, newZoom));
+
+  const d = video.duration || 0;
+  const pct = d ? (video.currentTime / d) : 0;
+  const oldInnerW = inner.offsetWidth;
+  const headPixelAbs = pct * oldInnerW;
+  const headOffsetInView = headPixelAbs - scroll.scrollLeft;
+
+  rvZoomLevel = newZoom;
+  inner.style.width = (newZoom * 100) + '%';
+
+  // Sync slider + label
+  const slider = document.getElementById('rvZoomSlider');
+  const label  = document.getElementById('rvZoomLabel');
+  if (slider) slider.value = newZoom;
+  if (label)  label.textContent = (Math.round(newZoom * 100) / 100) + '×';
+
+  // After reflow, pin the playhead to the same viewport pixel it occupied
+  requestAnimationFrame(() => {
+    const newInnerW = inner.offsetWidth;
+    const newHeadPixelAbs = pct * newInnerW;
+    scroll.scrollLeft = newHeadPixelAbs - headOffsetInView;
+  });
+}
+
+// Wire zoom controls once. Buttons step by 0.5×; slider is continuous.
+(function() {
+  const slider = document.getElementById('rvZoomSlider');
+  const btnOut = document.getElementById('rvZoomOut');
+  const btnIn  = document.getElementById('rvZoomIn');
+  if (!slider || !btnOut || !btnIn) return;
+  slider.addEventListener('input', () => rvApplyZoom(parseFloat(slider.value)));
+  btnOut.addEventListener('click', () => rvApplyZoom(rvZoomLevel - 0.5));
+  btnIn.addEventListener('click',  () => rvApplyZoom(rvZoomLevel + 0.5));
+})();
+
+// Live-update one marker's inline position (used during drag to avoid re-renders)
+function rvUpdateMarker(id) {
+  const sub = subtitles.find(s => s.id === id); if (!sub) return;
+  const m = document.querySelector(`.rv-tl-marker[data-id="${id}"]`);
+  if (!m) return;
+  const dur = video.duration || 100;
+  m.style.left  = (sub.start / dur * 100) + '%';
+  // No JS width floor — CSS min-width:2px handles the sub-pixel case.
+  m.style.width = ((sub.end - sub.start) / dur * 100) + '%';
+}
+function rvSyncSelectionClasses() {
+  document.querySelectorAll('.rv-tl-marker').forEach(m => {
+    m.classList.toggle('selected', selectedIds.has(parseInt(m.dataset.id)));
+  });
+  // Also mirror selection onto the review list cards. Every existing selection-
+  // changing path (marker click, box-select, empty-track clear, group drag)
+  // already routes through this function, so they all get card sync for free.
+  document.querySelectorAll('.rv-card').forEach(c => {
+    c.classList.toggle('rv-selected', selectedIds.has(parseInt(c.dataset.id)));
+  });
+}
+
+function rvMarkerMouseDown(sub, e) {
+  e.preventDefault(); e.stopPropagation();
+  const dur = video.duration || 100;
+  const track = document.getElementById('rvTLTrack');
+  const trackRect = track.getBoundingClientRect();
+  const startClientX = e.clientX;
+
+  // Decide the operation & the affected subtitle set
+  const inSelection = selectedIds.has(sub.id) && selectedIds.size > 1;
+  let mode;           // 'rigid' | 'isolate' | 'group'
+  let affectedIds;
+
+  if (e.shiftKey && !inSelection) {
+    // Shift+drag → isolate this one
+    mode = 'isolate';
+    affectedIds = new Set([sub.id]);
+  } else if (inSelection) {
+    // Grabbing any marker that's part of the current multi-selection → group move
+    mode = 'group';
+    affectedIds = new Set(selectedIds);
+  } else {
+    // Plain drag → RIGID: the whole timeline moves as one block.
+    // First clear any stale selection so state is unambiguous.
+    if (selectedIds.size > 0) { selectedIds.clear(); selectedId = null; rvSyncSelectionClasses(); }
+    mode = 'rigid';
+    affectedIds = new Set(subtitles.map(s => s.id));
+  }
+
+  // Snapshot original positions of all affected subs
+  const origPos = new Map();
+  affectedIds.forEach(id => {
+    const s = subtitles.find(s => s.id === id);
+    if (s) origPos.set(id, { start: s.start, end: s.end });
+  });
+  const minStart = Math.min(...[...origPos.values()].map(p => p.start));
+  const maxEnd   = Math.max(...[...origPos.values()].map(p => p.end));
+
+  // Visual cues so a beginner sees what's about to move
+  const draggedMarker = document.querySelector(`.rv-tl-marker[data-id="${sub.id}"]`);
+  if (mode === 'rigid') {
+    if (draggedMarker) draggedMarker.classList.add('rippling');
+    document.querySelectorAll('.rv-tl-marker').forEach(m => {
+      if (m !== draggedMarker) m.classList.add('rippling-downstream');
+    });
+  } else if (mode === 'isolate') {
+    if (draggedMarker) draggedMarker.classList.add('isolating');
+  }
+  // group mode → .selected styling already applied by prior box-select
+
+  let moved = false;
+
+  function onMove(mv) {
+    const dx = mv.clientX - startClientX;
+    const rawDelta = (dx / trackRect.width) * dur;
+    const clampedDelta = parseFloat(Math.max(-minStart, Math.min(dur - maxEnd, rawDelta)).toFixed(3));
+    if (!moved && Math.abs(clampedDelta) > 0.02) { saveUndo(); moved = true; document.body.style.cursor = 'grabbing'; }
+    if (!moved) return;
+    affectedIds.forEach(id => {
+      const s = subtitles.find(s => s.id === id);
+      const orig = origPos.get(id);
+      if (!s || !orig) return;
+      s.start = parseFloat((orig.start + clampedDelta).toFixed(3));
+      s.end   = parseFloat((orig.end + clampedDelta).toFixed(3));
+      rvUpdateMarker(id);
+      rvSyncCard(id, 'start', s);
+      rvSyncCard(id, 'end',   s);
+    });
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = '';
+    document.querySelectorAll('.rv-tl-marker.rippling, .rv-tl-marker.rippling-downstream, .rv-tl-marker.isolating').forEach(m => {
+      m.classList.remove('rippling', 'rippling-downstream', 'isolating');
+    });
+    if (moved) {
+      closeSubGaps();
+      refreshAll();
+      triggerSave();
+    } else {
+      // Plain click on marker → seek + single-select + scroll its card into
+      // view. Uses rvScrollCardIntoView (no manual-pause gate) because a
+      // click is an EXPLICIT user action, not passive playback follow.
+      const s = subtitles.find(s => s.id === sub.id);
+      if (s) { video.currentTime = s.start; tickUI(); }
+      selectedIds.clear(); selectedIds.add(sub.id); selectedId = sub.id;
+      rvSyncSelectionClasses();          // syncs marker AND card highlights
+      rvScrollCardIntoView(sub.id);      // bring the card up in the list
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// Edge (resize handle) drag.
+//   Default (no modifier) — CONTACT PUSH: if there's a gap between this sub
+//     and its neighbor on the dragged side, the edge moves freely through the
+//     gap and the neighbor is untouched. Once flush, further movement pushes
+//     the neighbor's boundary along, keeping them touching. If the drag then
+//     retreats out of the neighbor, the neighbor restores toward its original.
+//   Shift+drag — ISOLATE: neighbor never moves; sub's edge is free (gaps/
+//     overlaps allowed). Same "shift = don't touch neighbors" rule as body.
+function rvEdgeMouseDown(sub, edge, e) {
+  e.preventDefault(); e.stopPropagation();
+  const dur = video.duration || 100;
+  const track = document.getElementById('rvTLTrack');
+  const trackRect = track.getBoundingClientRect();
+  const isolate = e.shiftKey;
+
+  const sortedAll = [...subtitles].filter(s => s.end > s.start).sort((a, b) => a.start - b.start);
+  const subIdx = sortedAll.findIndex(s => s.id === sub.id);
+  const prevSub = subIdx > 0 ? subtitles.find(s => s.id === sortedAll[subIdx - 1].id) : null;
+  const nextSub = subIdx < sortedAll.length - 1 ? subtitles.find(s => s.id === sortedAll[subIdx + 1].id) : null;
+
+  // Snapshot neighbor originals so contact-push can restore them if the drag
+  // retreats back out of the neighbor.
+  const origPrevEnd   = prevSub ? prevSub.end   : null;
+  const origNextStart = nextSub ? nextSub.start : null;
+
+  const marker = document.querySelector(`.rv-tl-marker[data-id="${sub.id}"]`);
+  if (marker) marker.classList.add(isolate ? 'isolating' : 'resizing');
+
+  let moved = false;
+
+  function onMove(mv) {
+    const rawT = ((mv.clientX - trackRect.left) / trackRect.width) * dur;
+    if (!moved) { saveUndo(); moved = true; document.body.style.cursor = 'ew-resize'; }
+
+    if (edge === 'start') {
+      // Lower bound: contact-push may not shrink prev below 0.1s; isolate has no such rule (allow overlap).
+      const lower = (!isolate && prevSub) ? (prevSub.start + 0.1) : 0;
+      const upper = sub.end - 0.1;
+      sub.start = parseFloat(Math.max(lower, Math.min(upper, rawT)).toFixed(3));
+      if (!isolate && prevSub) {
+        // Contact push: prev.end tracks sub.start only when sub.start dips below origPrevEnd.
+        // Otherwise prev.end stays at origPrevEnd (gap preserved / restored).
+        prevSub.end = Math.min(origPrevEnd, sub.start);
+      }
+    } else {
+      const upper = (!isolate && nextSub) ? (nextSub.end - 0.1) : dur;
+      const lower = sub.start + 0.1;
+      sub.end = parseFloat(Math.max(lower, Math.min(upper, rawT)).toFixed(3));
+      if (!isolate && nextSub) {
+        nextSub.start = Math.max(origNextStart, sub.end);
+      }
+    }
+
+    rvUpdateMarker(sub.id);
+    rvSyncCard(sub.id, 'start', sub);
+    rvSyncCard(sub.id, 'end',   sub);
+    if (!isolate) {
+      if (prevSub) { rvUpdateMarker(prevSub.id); rvSyncCard(prevSub.id, 'end',   prevSub); }
+      if (nextSub) { rvUpdateMarker(nextSub.id); rvSyncCard(nextSub.id, 'start', nextSub); }
+    }
+  }
+  function onUp() {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    document.body.style.cursor = '';
+    if (marker) marker.classList.remove('resizing', 'isolating');
+    if (moved) {
+      closeSubGaps();
+      refreshAll();
+      triggerSave();
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+}
+
+// Empty-track: click = seek, drag = box-select
+document.getElementById('rvTLTrack').addEventListener('mousedown', e => {
+  if (e.target.closest('.rv-tl-marker')) return;
+  const track = e.currentTarget;
+  const rect  = track.getBoundingClientRect();
+  const dur   = video.duration || 0;
+  const startClientX = e.clientX;
+  const startX = startClientX - rect.left;
+  let box = null;
+
+  function onMove(mv) {
+    if (!box && Math.abs(mv.clientX - startClientX) > 4) {
+      box = document.createElement('div');
+      box.id = 'rvTLBox';
+      track.appendChild(box);
+      // Starting a box → wipe existing selection
+      selectedIds.clear(); selectedId = null;
+    }
+    if (!box) return;
+    const curX = mv.clientX - rect.left;
+    const l = Math.max(0, Math.min(startX, curX));
+    const r = Math.min(rect.width, Math.max(startX, curX));
+    box.style.left  = l + 'px';
+    box.style.width = (r - l) + 'px';
+    if (dur) {
+      const lSec = (l / rect.width) * dur;
+      const rSec = (r / rect.width) * dur;
+      selectedIds.clear();
+      subtitles.forEach(s => {
+        if (s.end > s.start && s.start < rSec && s.end > lSec) selectedIds.add(s.id);
+      });
+      selectedId = selectedIds.size ? [...selectedIds][0] : null;
+      rvSyncSelectionClasses();
+    }
+  }
+  function onUp(uv) {
+    document.removeEventListener('mousemove', onMove);
+    document.removeEventListener('mouseup', onUp);
+    if (box) {
+      box.remove();
+      // Keep the multi-selection
+    } else {
+      // No drag → treat as seek + clear selection
+      if (dur) {
+        const clickSec = ((uv.clientX - rect.left) / rect.width) * dur;
+        video.currentTime = Math.max(0, Math.min(dur, clickSec));
+        tickUI();
+      }
+      selectedIds.clear(); selectedId = null;
+      rvSyncSelectionClasses();
+    }
+  }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
+});
+
+// Keep review scrubber redrawn if video metadata loads while in review mode
+video.addEventListener('loadedmetadata', () => { if (reviewMode) renderRvTimeline(); });
 
 function renderReviewList() {
   const listEl = document.getElementById('reviewList');
@@ -2877,7 +3604,7 @@ function renderReviewList() {
 
   sorted.forEach((sub, idx) => {
     const card = document.createElement('div');
-    card.className = 'rv-card';
+    card.className = 'rv-card' + (selectedIds.has(sub.id) ? ' rv-selected' : '');
     card.dataset.id = sub.id;
 
     card.innerHTML = `
@@ -2907,12 +3634,14 @@ function renderReviewList() {
         </div>
       </div>
       <div class="rv-actions">
-        <button class="rv-btn rv-play-btn" data-action="play"   data-id="${sub.id}">▶ Play from here</button>
+        <button class="rv-btn rv-play-btn" data-action="play"   data-id="${sub.id}">▶ Play this line</button>
         <button class="rv-btn"             data-action="split"  data-id="${sub.id}">Split here</button>
         <button class="rv-btn"             data-action="merge"  data-id="${sub.id}">Merge with next</button>
         <button class="rv-btn"             data-action="add"    data-id="${sub.id}">Add line below</button>
+        <button class="rv-comment-btn${(subtitleComments[sub.supabaseId]?.length ?? 0) > 0 ? ' has-comments' : ''}" data-id="${sub.id}">${(subtitleComments[sub.supabaseId]?.length ?? 0) > 0 ? '💬 Notes (' + subtitleComments[sub.supabaseId].length + ')' : '💬 Notes'}</button>
         <button class="rv-btn rv-danger"   data-action="delete" data-id="${sub.id}">Delete</button>
-      </div>`;
+      </div>
+      <div class="rv-comments" data-id="${sub.id}"></div>`;
 
     // ── Text editor ─────────────────────────────────
     const ed = card.querySelector('.rv-editor');
@@ -2926,6 +3655,10 @@ function renderReviewList() {
         .replace(/<span[^>]*>([\s\S]*?)<\/span>/gi, '$1')
         .replace(/<(?!\/?[bi])[^>]*>/gi, '');
       s.lines = raw.split('\n').map(l => l.trimEnd());
+      // Live-update the rv-timeline marker's first-3-words label
+      // (mirrors how saveEditorContent keeps the pro-timeline block's span in sync).
+      const label = document.querySelector(`.rv-tl-marker[data-id="${sub.id}"] .rv-tl-label`);
+      if (label) label.textContent = (s.lines.join(' ').match(/\S+/g) || []).slice(0, 3).join(' ');
       updateOverlay(video.currentTime);
       triggerSave();
     }
@@ -2957,26 +3690,32 @@ function renderReviewList() {
     });
 
     // ── Nudge buttons ────────────────────────────────
+    // Nudge moves ONLY this title by ±0.1s and leaves it exactly where it
+    // lands — no snapping to neighbors, no neighbor movement. Same self-
+    // consistency guard as Set-now (via rvSetField).
     card.querySelectorAll('.rv-nudge').forEach(btn => {
       btn.addEventListener('click', () => {
         const s = subtitles.find(s => s.id === sub.id); if (!s) return;
         saveUndo();
         const field = btn.dataset.field, delta = parseFloat(btn.dataset.delta);
-        s[field] = parseFloat(Math.max(0, s[field] + delta).toFixed(3));
-        rvCascade(s, field); // clamps, cascades to neighbor, syncs all displays
+        rvSetField(s, field, s[field] + delta);
         refreshTimeline();
         triggerSave();
       });
     });
 
     // ── Set to now buttons ───────────────────────────
+    // Snaps to the playhead (video.currentTime). rvSetField enforces the ONLY
+    // guard: this title's own start<end (with RV_MIN_DUR). Neighbors are
+    // never touched or pushed. If the playhead is past sub.end - RV_MIN_DUR
+    // (or before sub.start + RV_MIN_DUR for end), we clamp against this
+    // title's own boundary so it can't invert and disappear.
     card.querySelectorAll('.rv-setnow').forEach(btn => {
       btn.addEventListener('click', () => {
         const s = subtitles.find(s => s.id === sub.id); if (!s) return;
         saveUndo();
         const field = btn.dataset.setfield;
-        s[field] = parseFloat(video.currentTime.toFixed(3));
-        rvCascade(s, field);
+        rvSetField(s, field, video.currentTime);
         refreshTimeline();
         showToast(field === 'start' ? 'Start set' : 'End set');
         triggerSave();
@@ -3016,6 +3755,18 @@ function renderReviewList() {
       });
     });
 
+    // ── Comments button + inline panel ─────────────────
+    const commentBtn  = card.querySelector('.rv-comment-btn');
+    const commentsDiv = card.querySelector('.rv-comments');
+    if (commentBtn && commentsDiv) {
+      commentBtn.addEventListener('click', e => {
+        e.stopPropagation();
+        const isOpen = commentsDiv.classList.contains('open');
+        if (!isOpen) { commentsDiv.classList.add('open'); renderCommentPanel(sub.id, sub.supabaseId, commentsDiv); }
+        else          { commentsDiv.classList.remove('open'); }
+      });
+    }
+
     listEl.appendChild(card);
   });
 
@@ -3041,45 +3792,32 @@ function rvSyncCard(id, field, sub) {
   rvUpdateDur(card, sub);
 }
 
-function rvCascade(sub, field) {
-  const sorted = [...subtitles].sort((a, b) => a.start - b.start);
-  const idx = sorted.findIndex(s => s.id === sub.id);
-
-  // Enforce minimum duration on current subtitle
-  if (field === 'end')   sub.end   = parseFloat(Math.max(sub.end,   sub.start + 0.1).toFixed(3));
-  if (field === 'start') sub.start = parseFloat(Math.min(sub.start, sub.end   - 0.1).toFixed(3));
-  sub.start = parseFloat(Math.max(0, sub.start).toFixed(3));
-
-  if (field === 'end' && idx < sorted.length - 1) {
-    const next = subtitles.find(s => s.id === sorted[idx + 1].id);
-    if (next) {
-      // Clamp: can't absorb the next subtitle entirely
-      sub.end   = parseFloat(Math.min(sub.end, next.end - 0.1).toFixed(3));
-      next.start = sub.end;
-      rvSyncCard(next.id, 'start', next);
-    }
-  } else if (field === 'start' && idx > 0) {
-    const prev = subtitles.find(s => s.id === sorted[idx - 1].id);
-    if (prev) {
-      // Clamp: can't absorb the previous subtitle entirely
-      sub.start = parseFloat(Math.max(sub.start, prev.start + 0.1).toFixed(3));
-      prev.end  = sub.start;
-      rvSyncCard(prev.id, 'end', prev);
-    }
-  }
-
-  // Always sync current card (post-clamp value)
+// Sole gatekeeper for setting a single field (start or end) on a subtitle in
+// Review Mode. Applies ONE guard only — a title's start can never cross its
+// own end (and vice versa), keeping at least RV_MIN_DUR of duration. It never
+// touches or reads any other subtitle. Both `.rv-setnow` and `.rv-nudge` route
+// through here so neither can drift into "silently pushes a neighbor" or
+// "vanishes because I inverted start/end" behavior.
+const RV_MIN_DUR = 0.1;
+function rvSetField(sub, field, newValue) {
+  let v = newValue;
+  if (field === 'start') v = Math.min(v, sub.end   - RV_MIN_DUR);
+  else                    v = Math.max(v, sub.start + RV_MIN_DUR);
+  if (v < 0) v = 0;
+  sub[field] = parseFloat(v.toFixed(3));
   rvSyncCard(sub.id, field, sub);
 }
 
-function rvAutoScroll(id) {
+// Bring a review card into view without regard for the manual-scroll pause.
+// Use for EXPLICIT user actions (marker click, keyboard nav) where the user
+// clearly wants to see this card. Playback-follow uses rvAutoScroll below,
+// which respects rvLastManualScroll.
+function rvScrollCardIntoView(id) {
   if (!reviewMode || !reviewListWrap) return;
   const listEl = document.getElementById('reviewList');
   if (!listEl) return;
   const card = listEl.querySelector(`.rv-card[data-id="${id}"]`);
   if (!card) return;
-  // Respect manual-scroll pause
-  if (Date.now() - rvLastManualScroll < RV_SCROLL_PAUSE_MS) return;
   const wrapRect = reviewListWrap.getBoundingClientRect();
   const cardRect = card.getBoundingClientRect();
   const cardRelTop = cardRect.top - wrapRect.top;
@@ -3093,10 +3831,50 @@ function rvAutoScroll(id) {
   }
 }
 
+function rvAutoScroll(id) {
+  // Playback-follow: skip when the user recently scrolled the list themselves.
+  if (Date.now() - rvLastManualScroll < RV_SCROLL_PAUSE_MS) return;
+  rvScrollCardIntoView(id);
+}
+
 // Review transport controls
 document.getElementById('rvPlayBtn').addEventListener('click', togglePlay);
-document.getElementById('rvProgress').addEventListener('input', e => {
-  if (video.duration) { video.currentTime = (parseFloat(e.target.value) / 100) * video.duration; tickUI(); }
+
+// Insert a brand-new empty subtitle starting at the red playhead's current
+// position. Reuses addSub (which itself takes t = video.currentTime as default
+// and applies DEFAULT_DUR = 10s), then focuses the new card's text editor so
+// the reviewer can start typing immediately. Ctrl+Z reverses the insert.
+document.getElementById('rvAddAtPlayheadBtn').addEventListener('click', () => {
+  addSub(video.currentTime || 0);
+  // addSub set selectedId to the new sub's id; refreshAll re-rendered the list;
+  // focus the new card's editor once the DOM is settled.
+  setTimeout(() => {
+    if (selectedId == null) return;
+    const ed = document.querySelector(`.rv-editor[data-id="${selectedId}"]`);
+    if (!ed) return;
+    const card = ed.closest('.rv-card');
+    if (card) card.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    ed.focus();
+  }, 40);
+});
+
+// Playhead is always draggable to scrub. Its wide transparent hit-area sits
+// above markers (higher stacking than any .rv-tl-marker z-index), so grabbing
+// the playhead wins over grabbing any marker underneath.
+document.getElementById('rvTLPlayheadHit').addEventListener('mousedown', e => {
+  e.preventDefault(); e.stopPropagation();
+  const trackEl = document.getElementById('rvTLTrack');
+  function seekAt(clientX) {
+    const dur = video.duration || 0; if (!dur) return;
+    const r = trackEl.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - r.left) / r.width));
+    video.currentTime = pct * dur; tickUI();
+  }
+  seekAt(e.clientX);
+  function onMove(mv) { seekAt(mv.clientX); }
+  function onUp() { document.removeEventListener('mousemove', onMove); document.removeEventListener('mouseup', onUp); }
+  document.addEventListener('mousemove', onMove);
+  document.addEventListener('mouseup', onUp);
 });
 
 // ── MONITOR RESIZE HANDLE ─────────────────────────
@@ -3135,6 +3913,18 @@ document.getElementById('rvProgress').addEventListener('input', e => {
   document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('visible')) overlay.classList.remove('visible'); });
 })();
 
+// ── REVIEW-MODE FRIENDLY HELP OVERLAY (Stage 3) ──
+(function() {
+  const overlay  = document.getElementById('rvHelpOverlay');
+  const openBtn  = document.getElementById('rvHelpBtn');
+  const closeBtn = document.getElementById('rvHelpClose');
+  if (!overlay || !openBtn || !closeBtn) return;
+  openBtn.addEventListener('click', () => overlay.classList.add('visible'));
+  closeBtn.addEventListener('click', () => overlay.classList.remove('visible'));
+  overlay.addEventListener('click', e => { if (e.target === overlay) overlay.classList.remove('visible'); });
+  document.addEventListener('keydown', e => { if (e.key === 'Escape' && overlay.classList.contains('visible')) overlay.classList.remove('visible'); });
+})();
+
 // ── CONTEXT MENU ──────────────────────────────────
 let ctxState = null; // { subId, editorEl, cursorOffset, savedRange, hasSel }
 
@@ -3149,11 +3939,12 @@ let ctxState = null; // { subId, editorEl, cursorOffset, savedRange, hasSel }
   function hide() { menu.style.display = 'none'; ctxState = null; }
 
   document.addEventListener('contextmenu', e => {
-    const editor = e.target.closest('.sr-editor');
+    // Same context menu for both Editor Mode's .sr-editor and Review Mode's .rv-editor
+    const editor = e.target.closest('.sr-editor, .rv-editor');
     if (!editor) { hide(); return; }
     e.preventDefault();
 
-    const row = editor.closest('.sub-row');
+    const row = editor.closest('.sub-row, .rv-card');
     if (!row) return;
     const subId = parseInt(row.dataset.id);
     const sub   = subtitles.find(s => s.id === subId);
@@ -3249,11 +4040,19 @@ async function loadCommentsForProject(supabaseProjectId) {
 }
 
 function updateCommentBadge(subId, supabaseId) {
-  const count  = subtitleComments[supabaseId]?.length ?? 0;
-  const badge  = document.querySelector(`.sr-comment-btn[data-id="${subId}"]`);
-  if (!badge) return;
-  badge.textContent = count ? '💬 ' + count : '💬';
-  badge.classList.toggle('has-comments', count > 0);
+  const count = subtitleComments[supabaseId]?.length ?? 0;
+  // Editor Mode compact icon button
+  const srBtn = document.querySelector(`.sr-comment-btn[data-id="${subId}"]`);
+  if (srBtn) {
+    srBtn.textContent = count ? '💬 ' + count : '💬';
+    srBtn.classList.toggle('has-comments', count > 0);
+  }
+  // Review Mode medium labeled button
+  const rvBtn = document.querySelector(`.rv-comment-btn[data-id="${subId}"]`);
+  if (rvBtn) {
+    rvBtn.textContent = count ? `💬 Notes (${count})` : '💬 Notes';
+    rvBtn.classList.toggle('has-comments', count > 0);
+  }
 }
 
 function renderCommentPanel(subId, supabaseId, containerEl) {
